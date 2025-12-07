@@ -1,0 +1,606 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>إشعاراتي | GiveHope</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    /* إعدادات عامة */
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Segoe UI', 'Arial', sans-serif;
+      background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+      color: #333;
+      line-height: 1.6;
+      min-height: 100vh;
+      padding: 20px;
+    }
+
+    .container {
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 0 15px;
+    }
+
+    /* الهيدر */
+    header {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 25px 30px;
+      border-radius: 15px 15px 0 0;
+      box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+      margin-bottom: 25px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    header::before {
+      content: '';
+      position: absolute;
+      top: -50%;
+      right: -50%;
+      width: 200%;
+      height: 200%;
+      background: rgba(255, 255, 255, 0.1);
+      transform: rotate(45deg);
+    }
+
+    header h1 {
+      font-size: 28px;
+      margin-bottom: 8px;
+      position: relative;
+      display: flex;
+      align-items: center;
+      gap: 15px;
+    }
+
+    header h1 i {
+      font-size: 32px;
+      color: #FFD700;
+    }
+
+    header .subtitle {
+      font-size: 16px;
+      opacity: 0.9;
+      position: relative;
+    }
+
+    /* فلترة وعدادات */
+    .notification-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 25px;
+      background: white;
+      padding: 15px 20px;
+      border-radius: 12px;
+      box-shadow: 0 3px 10px rgba(0, 0, 0, 0.08);
+      flex-wrap: wrap;
+      gap: 15px;
+    }
+
+    .stats {
+      display: flex;
+      gap: 20px;
+    }
+
+    .stat-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 10px 15px;
+      background: #f8f9fa;
+      border-radius: 8px;
+      min-width: 100px;
+    }
+
+    .stat-item .count {
+      font-size: 24px;
+      font-weight: bold;
+      color: #667eea;
+    }
+
+    .stat-item .label {
+      font-size: 14px;
+      color: #666;
+      margin-top: 5px;
+    }
+
+    .filters {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .filter-btn {
+      padding: 8px 16px;
+      border: none;
+      background: #eef2ff;
+      color: #667eea;
+      border-radius: 20px;
+      cursor: pointer;
+      font-size: 14px;
+      transition: all 0.3s;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .filter-btn:hover {
+      background: #667eea;
+      color: white;
+      transform: translateY(-2px);
+    }
+
+    .filter-btn.active {
+      background: #667eea;
+      color: white;
+      box-shadow: 0 3px 8px rgba(102, 126, 234, 0.3);
+    }
+
+    /* الإشعارات */
+    #notifications {
+      display: flex;
+      flex-direction: column;
+      gap: 15px;
+    }
+
+    .notification {
+      background: white;
+      border-radius: 12px;
+      padding: 20px;
+      box-shadow: 0 3px 12px rgba(0, 0, 0, 0.08);
+      transition: all 0.3s ease;
+      border-right: 4px solid #ddd;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .notification:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+    }
+
+    .notification.unread {
+      border-right-color: #667eea;
+      background: linear-gradient(to left, rgba(102, 126, 234, 0.05), transparent);
+    }
+
+    .notification.unread::before {
+      content: '';
+      position: absolute;
+      right: 0;
+      top: 0;
+      width: 4px;
+      height: 100%;
+      background: #667eea;
+    }
+
+    .notification-header-line {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+    }
+
+    .notification-title {
+      font-size: 18px;
+      font-weight: 600;
+      color: #333;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .notification-type {
+      display: inline-block;
+      padding: 3px 10px;
+      font-size: 12px;
+      border-radius: 12px;
+      background: #f0f0f0;
+      color: #666;
+    }
+
+    .notification-message {
+      color: #555;
+      margin-bottom: 15px;
+      line-height: 1.7;
+      font-size: 15px;
+    }
+
+    .notification-footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 13px;
+      color: #888;
+      border-top: 1px solid #eee;
+      padding-top: 15px;
+    }
+
+    .notification-date {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .notification-actions {
+      display: flex;
+      gap: 10px;
+    }
+
+    .action-btn {
+      padding: 6px 14px;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 13px;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .read-btn {
+      background: #667eea;
+      color: white;
+    }
+
+    .read-btn:hover {
+      background: #5a6fd8;
+      transform: translateY(-2px);
+    }
+
+    .delete-btn {
+      background: #ff6b6b;
+      color: white;
+    }
+
+    .delete-btn:hover {
+      background: #ff5252;
+      transform: translateY(-2px);
+    }
+
+    /* حالة عدم وجود إشعارات */
+    .empty-state {
+      text-align: center;
+      padding: 60px 20px;
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 3px 10px rgba(0, 0, 0, 0.08);
+    }
+
+    .empty-state i {
+      font-size: 70px;
+      color: #ddd;
+      margin-bottom: 20px;
+    }
+
+    .empty-state h3 {
+      color: #777;
+      margin-bottom: 10px;
+      font-size: 22px;
+    }
+
+    .empty-state p {
+      color: #999;
+      font-size: 16px;
+    }
+
+    /* ألوان حسب نوع الإشعار */
+    .type-donation_thanks .notification-type { background: #e3f2fd; color: #1976d2; }
+    .type-new_donation .notification-type { background: #e8f5e8; color: #2e7d32; }
+    .type-case_completed .notification-type { background: #fff3e0; color: #f57c00; }
+    .type-payment_received .notification-type { background: #f3e5f5; color: #7b1fa2; }
+    .type-system_alert .notification-type { background: #ffebee; color: #d32f2f; }
+
+    /* رسبونسف */
+    @media (max-width: 768px) {
+      .notification-header {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+      
+      .stats {
+        width: 100%;
+        justify-content: space-between;
+      }
+      
+      .stat-item {
+        flex: 1;
+        min-width: auto;
+      }
+      
+      .filters {
+        width: 100%;
+        justify-content: center;
+      }
+      
+      .notification-header-line {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 10px;
+      }
+      
+      .notification-footer {
+        flex-direction: column;
+        gap: 15px;
+        align-items: flex-start;
+      }
+      
+      .notification-actions {
+        width: 100%;
+        justify-content: flex-end;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1><i class="fas fa-bell"></i> إشعاراتي</h1>
+      <p class="subtitle">تابع آخر التحديثات والأنشطة في حسابك</p>
+    </header>
+    
+    <div class="notification-header">
+      <div class="stats">
+        <div class="stat-item">
+          <span class="count" id="totalCount">0</span>
+          <span class="label">جميع الإشعارات</span>
+        </div>
+        <div class="stat-item">
+          <span class="count" id="unreadCount">0</span>
+          <span class="label">غير المقروء</span>
+        </div>
+      </div>
+      
+      <div class="filters">
+        <button class="filter-btn active" onclick="filterNotifications('all')">
+          <i class="fas fa-list"></i> الكل
+        </button>
+        <button class="filter-btn" onclick="filterNotifications('unread')">
+          <i class="fas fa-envelope"></i> غير المقروء
+        </button>
+        <button class="filter-btn" onclick="filterNotifications('read')">
+          <i class="fas fa-envelope-open"></i> المقروء
+        </button>
+      </div>
+    </div>
+    
+    <div id="notifications">
+      <!-- سيتم ملؤه بالجافاسكريبت -->
+    </div>
+  </div>
+
+  <script>
+    const token = localStorage.getItem('token');
+    if (!token) {
+      window.location.href = '/login.html';
+    }
+
+    let allNotifications = [];
+    let filteredNotifications = [];
+
+    async function loadNotifications() {
+      try {
+        const res = await fetch('/api/notifications', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        
+        if (!res.ok) {
+          throw new Error('فشل في تحميل الإشعارات');
+        }
+        
+        allNotifications = await res.json();
+        filteredNotifications = [...allNotifications];
+        
+        updateStats();
+        renderNotifications();
+      } catch (error) {
+        console.error('خطأ في تحميل الإشعارات:', error);
+        showErrorMessage();
+      }
+    }
+
+    function updateStats() {
+      const totalCount = allNotifications.length;
+      const unreadCount = allNotifications.filter(n => !n.isRead).length;
+      
+      document.getElementById('totalCount').textContent = totalCount;
+      document.getElementById('unreadCount').textContent = unreadCount;
+    }
+
+    function renderNotifications() {
+      const container = document.getElementById('notifications');
+      
+      if (filteredNotifications.length === 0) {
+        container.innerHTML = `
+          <div class="empty-state">
+            <i class="far fa-bell-slash"></i>
+            <h3>لا توجد إشعارات</h3>
+            <p>عندما تصلك إشعارات جديدة، ستظهر هنا</p>
+          </div>
+        `;
+        return;
+      }
+      
+      container.innerHTML = '';
+      
+      filteredNotifications.forEach(n => {
+        const div = document.createElement('div');
+        div.className = `notification ${!n.isRead ? 'unread' : ''} type-${n.type}`;
+        
+        // تنسيق التاريخ
+        const date = new Date(n.createdAt);
+        const timeString = date.toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' });
+        const dateString = date.toLocaleDateString('ar-EG', { 
+          year: 'numeric', 
+          month: 'long', 
+          day: 'numeric' 
+        });
+        
+        // أيقونة حسب النوع
+        let typeIcon = 'fas fa-info-circle';
+        let typeText = 'معلومات';
+        
+        switch(n.type) {
+          case 'donation_thanks':
+            typeIcon = 'fas fa-heart';
+            typeText = 'شكر على التبرع';
+            break;
+          case 'new_donation':
+            typeIcon = 'fas fa-hand-holding-usd';
+            typeText = 'تبرع جديد';
+            break;
+          case 'case_completed':
+            typeIcon = 'fas fa-flag-checkered';
+            typeText = 'اكتمال حالة';
+            break;
+          case 'payment_received':
+            typeIcon = 'fas fa-money-check-alt';
+            typeText = 'استلام دفعة';
+            break;
+          case 'system_alert':
+            typeIcon = 'fas fa-exclamation-triangle';
+            typeText = 'تنبيه نظام';
+            break;
+        }
+        
+        div.innerHTML = `
+          <div class="notification-header-line">
+            <div class="notification-title">
+              <i class="${typeIcon}"></i>
+              ${n.title}
+            </div>
+            <span class="notification-type">
+              <i class="${typeIcon}"></i> ${typeText}
+            </span>
+          </div>
+          
+          <div class="notification-message">
+            ${n.message}
+          </div>
+          
+          <div class="notification-footer">
+            <div class="notification-date">
+              <i class="far fa-clock"></i>
+              ${dateString} - ${timeString}
+            </div>
+            
+            <div class="notification-actions">
+              ${!n.isRead ? `
+                <button class="action-btn read-btn" onclick="markAsRead('${n._id}')">
+                  <i class="fas fa-check"></i> تم القراءة
+                </button>
+              ` : ''}
+              <button class="action-btn delete-btn" onclick="deleteNotification('${n._id}')">
+                <i class="fas fa-trash"></i> حذف
+              </button>
+            </div>
+          </div>
+        `;
+        
+        container.appendChild(div);
+      });
+    }
+
+    function filterNotifications(filter) {
+      // تحديث الأزرار النشطة
+      document.querySelectorAll('.filter-btn').forEach(btn => {
+        btn.classList.remove('active');
+      });
+      event.target.classList.add('active');
+      
+      // تطبيق الفلتر
+      switch(filter) {
+        case 'all':
+          filteredNotifications = [...allNotifications];
+          break;
+        case 'unread':
+          filteredNotifications = allNotifications.filter(n => !n.isRead);
+          break;
+        case 'read':
+          filteredNotifications = allNotifications.filter(n => n.isRead);
+          break;
+      }
+      
+      renderNotifications();
+    }
+
+    async function markAsRead(id) {
+      try {
+        const res = await fetch(`/api/notifications/${id}/read`, {
+          method: 'PUT',
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        
+        if (res.ok) {
+          // تحديث البيانات المحلية
+          const index = allNotifications.findIndex(n => n._id === id);
+          if (index !== -1) {
+            allNotifications[index].isRead = true;
+          }
+          
+          updateStats();
+          filterNotifications(document.querySelector('.filter-btn.active').textContent.includes('الكل') ? 'all' : 
+                             document.querySelector('.filter-btn.active').textContent.includes('غير المقروء') ? 'unread' : 'read');
+        }
+      } catch (error) {
+        console.error('خطأ في تعيين الإشعار كمقروء:', error);
+        alert('حدث خطأ أثناء تحديث حالة الإشعار');
+      }
+    }
+
+    async function deleteNotification(id) {
+      if (!confirm('هل أنت متأكد من حذف هذا الإشعار؟')) {
+        return;
+      }
+      
+      try {
+        const res = await fetch(`/api/notifications/${id}`, {
+          method: 'DELETE',
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        
+        if (res.ok) {
+          // إزالة من البيانات المحلية
+          allNotifications = allNotifications.filter(n => n._id !== id);
+          filteredNotifications = filteredNotifications.filter(n => n._id !== id);
+          
+          updateStats();
+          renderNotifications();
+        }
+      } catch (error) {
+        console.error('خطأ في حذف الإشعار:', error);
+        alert('حدث خطأ أثناء حذف الإشعار');
+      }
+    }
+
+    function showErrorMessage() {
+      const container = document.getElementById('notifications');
+      container.innerHTML = `
+        <div class="empty-state">
+          <i class="fas fa-exclamation-circle" style="color:#ff6b6b;"></i>
+          <h3>حدث خطأ في تحميل الإشعارات</h3>
+          <p>يرجى المحاولة مرة أخرى أو تحديث الصفحة</p>
+          <button class="action-btn read-btn" onclick="loadNotifications()" style="margin-top:20px;">
+            <i class="fas fa-redo"></i> إعادة المحاولة
+          </button>
+        </div>
+      `;
+    }
+
+    // تحميل الإشعارات عند فتح الصفحة
+    loadNotifications();
+    
+    // تحديث الإشعارات كل 30 ثانية
+    setInterval(loadNotifications, 30000);
+  </script>
+</body>
+</html>

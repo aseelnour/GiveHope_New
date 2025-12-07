@@ -1,0 +1,152 @@
+
+[
+  {
+    "id": 1,
+    "title": "عملية جراحية عاجلة",
+    "type": "health",
+    "image": "images/operation.png",
+    "total": 1000,
+    "donated": 700,
+    
+    "publishDate" : "15-9-2025" , 
+    "donationsCount":5,
+    "deadline" : "14-11-2025",
+    "description": "مريض بحاجة إلى عملية قلب  عاجلة لإنقاذ حياته.",
+    "otherDescription":"تم معاينه جميع الاوراق الرسميه والتاكد من صحه الحاله"
+  },
+  {
+    "id": 2,
+    "title": "قسط طالب جامعي",
+    "type": "education",
+    "image": "images/student.jpg",
+    "total": 800,
+    "donated": 200,
+   
+     "publishDate" : "15-8-2025" , 
+     "donationsCount":3,
+    "deadline" : "18-11-2025",
+    "description": "مساعدة طالب جامعي في دفع رسوم تعليمه لاستكمال دراسته.",
+        "otherDescription":"تم معاينه جميع الاوراق الرسميه والتاكد من صحه الحاله"
+
+  },
+  {
+    "id": 3,
+    "title": "إيجار منزل لأسرة",
+    "type": "living",
+    "image": "images/homes.jpg",
+    "total": 1500,
+    "donated": 600,
+  
+    "donationsCount":4,
+    "publishDate" : "10-8-2025" , 
+    "deadline" : "20-10-2025",
+    "description": "توفير إيجار منزل لأسرة متعففة وحمايتها من التشرد.",
+        "otherDescription":"تم معاينه جميع الاوراق الرسميه والتاكد من صحه الحاله"
+
+  },
+  {
+    "id": 4,
+    "title": "حليب لطفل محتاج",
+    "type": "orphans",
+    "image": "images/milk(1).jpg",
+    "total": 100,
+    "donated": 70,
+    "donationsCount":1,
+   
+     "publishDate" : "30-10-2025" ,
+   
+    "description": "توفير حليب ضروري لطفل يتيم لا يجد من يعيله.",
+        "otherDescription":"تم معاينه جميع الاوراق الرسميه والتاكد من صحه الحاله"
+
+  },
+  {
+    "id": 5,
+    "title": "فاتورة كهرباء لعائلة",
+    "type": "living",
+    "image": "images/dollars.png",
+    "total": 300,
+    "donated": 150,
+  
+     "publishDate" : "1-9-2025" , 
+     "donationsCount":3,
+    "deadline" : "30-10-2025",
+    "description": "دعم عائلة متعففة بسداد فاتورة الكهرباء لتوفير احتياجاتهم الأساسية.",
+        "otherDescription":"تم معاينه جميع الاوراق الرسميه والتاكد من صحه الحاله"
+
+  },
+  {
+    "id": 6,
+    "title": "شراء ملابس شتوية لطفل",
+    "type": "living",
+    "image": "images/clothes.jpg",
+    "total": 200,
+    "donated": 0,
+    "donationsCount":0,
+     "publishDate" : "31-8-2025" , 
+    "deadline" : "3-10-2025",
+    "description": "توفير ملابس شتوية دافئة لطفل لا يملك ما يحميه من البرد.",
+        "otherDescription":"تم معاينه جميع الاوراق الرسميه والتاكد من صحه الحاله"
+
+  },
+  {
+    "id": 7,
+    "title": "أدوية لمريض السكري",
+    "type": "health",
+    "image": "images/drug.jpg",
+    "total": 250,
+    "donated": 150,
+    "donationsCount":2,
+   
+     "publishDate" : "13-10-2025" , 
+    "deadline" : "15-10-2025",
+    "description": "مساعدة مريض سكري في توفير أدويته .",
+      "otherDescription":"تم معاينه جميع الاوراق الرسميه والتاكد من صحه الحاله"
+
+  },
+  {
+    "id": 8,
+    "title": "قرطاسية لطالب",
+    "type": "education",
+    "image": "images/books.jpg",
+    "total": 70,
+    "donated": 20,
+    "donationsCount":1,
+    
+     "publishDate" : "16-9-2025" , 
+    "deadline" : "16-11-2025",
+    "description": "دعم طالب في توفير قرطاسية ومستلزمات مدرسية لمتابعة تعليمه.",
+        "otherDescription":"تم معاينه جميع الاوراق الرسميه والتاكد من صحه الحاله"
+
+  }
+  ,
+  {
+    "id": 9,
+    "title": " شراء وقود للتدفئه   ",
+    "type": "living",
+    "image": "images/gaz.jpg",
+    "total": 20,
+    "donated": 5,
+    "donationsCount":3,
+    
+     "publishDate" : "2-10-2025" , 
+    "deadline" : "16-10-2025",
+    "description": "لتدفئة بيت عائله محتاجه  في فصل الشتاء. ",
+        "otherDescription":"تم معاينه جميع الاوراق الرسميه والتاكد من صحه الحاله"
+
+  } ,
+  {
+    "id": 10,
+    "title": "توفير مسكن لعائله نازحه",
+    "type": "Emergency",
+    "image": "images/newhouse.jpg",
+    "total": 700 ,
+    "donated": 400 ,
+    "donationsCount":4,
+    
+     "publishDate" : "2-10-2025" , 
+    "deadline" : "16-10-2025",
+    "description": "بسبب النزوح، أصبحت هذه الأسرة المكونه من ام و 3 اطفال بلا مأوى، وهي الآن بحاجة إلى مبلغ يساعدها في استئجار بيت بسيط يوفر لهم الاستقرار ",
+        "otherDescription":"تم معاينه جميع الاوراق الرسميه والتاكد من صحه الحاله"
+
+  }
+]

@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="ar"  dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+     <title>  قصص نجاح - GiveHope</title>
+      <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600&family=Tajawal:wght@500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+       <link rel="stylesheet" href="stories.css">
+</head>
+<body>
+    
+
+     <div id="navbar-placeholder"></div>
+
+ <section class="page-header">
+        <h1>من أثر إحسانكم</h1>
+        <p>أثر يغير الحياة، وسعادة تنمو لعطاء مستمر</p>
+    </section>
+    
+    <!-- إحصائيات -->
+    <section class="stats-section"> 
+        <h1 style="font-size: 2.5rem;
+    margin-bottom: 2rem;
+    font-family: 'Cairo', sans-serif;
+    position: relative; color: #2563EB;"> "لأن الخير لا يُنسى، نروي قصصه هنا ."</h1>
+        <div class="stats-container">
+           
+            <div class="stat-item">
+                <span class="stat-number" id="totalStories">0</span>
+                <span class="stat-label">  عدد القصص </span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-number" id="totalViews">0</span>
+                <span class="stat-label">إجمالي المشاهدات</span>
+            </div>
+             <div class="stat-item">
+                <span class="stat-number" id="totaldonations">0</span>
+                <span class="stat-label"> اجمالي التبرعات ل هذه القصص  </span>
+            </div> 
+        </div>
+    </section>
+
+    <!-- قصص النجاح -->
+    <section class="stories-section">
+        <div class="section-title">
+            <h2>بعطائكم كنتم عونا لهذه الحالات</h2>
+        </div>
+
+        <div class="stories-grid" id="stories-container">
+            
+        </div>
+    </section>
+
+    <!-- قسم مشاركة القصة -->
+    <section class="share-story">
+        <h2>هل لديك قصة نجاح مع GiveHope؟</h2>
+        <p>شاركنا تجربتك لتحفيز الآخرين على المساهمة في صنع فرق حقيقي في حياة الاخرين</p>
+        <button class="share-btn">شارك قصتك</button>
+    </section>
+
+    
+<!-- المودال -->
+<div class="story-modal" id="storyModal">
+    <div class="modal-content">
+        <span class="close-btn">&times;</span>
+        <h3>شارك قصتك معنا</h3>
+        
+        <form id="storyForm">
+            
+            <div class="form-group">
+                <label for="storyTitle">عنوان القصة:</label>
+                <input type="text" id="storyTitle" required placeholder="قصه احمد...">
+            </div>
+            
+
+            <div class="form-group">
+                <label for="storyCategory">فئة القصة:</label>
+                <select id="storyCategory" required>
+                    <option value="" disabled selected>اختر فئة القصة</option>
+                    <option value="تعليمية"> تعليمية</option>
+                    <option value="صحية"> صحية</option>
+                    <option value="معيشية"> معيشية</option>
+                     <option value="رعاية ايتام"> رعاية ايتام </option>
+                     <option value="طوارئ"> طوارئ</option>
+                    <option value="كفالات">كفالات </option>
+                    <option value="مشاريع">مشاريع </option>
+                    <option value="حملات"> حملات </option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label>نوع المشاركة:</label>
+                <div class="radio-group">
+                    <input type="radio" id="typeBeneficiary" name="storyType" value="مستفيد" required>
+                    <label for="typeBeneficiary">أنا مستفيد</label>
+                    
+                    <input type="radio" id="typeDonor" name="storyType" value="متبرع" required>
+                    <label for="typeDonor">أنا متبرع</label>
+                </div>
+            </div>
+
+   <!-- ===============================================================================------- -->
+
+         <div class="form-group">
+    <label for="donationAmount">المبلغ المتبرع به:</label>
+    <input type="number" id="donationAmount" min="0" step="0.01" placeholder="أدخل المبلغ">
+</div>
+
+<div class="form-group">
+    <label for="donationCurrency">العملة:</label>
+    <select id="donationCurrency">
+         <option value="ILS"> شيكل (ILS)</option>
+        <option value="USD">دولار أمريكي (USD)</option>
+        <option value="JOD" selected>دينار أردني (JOD)</option>
+        <option value="AED">درهم إماراتي (AED)</option>
+        
+    </select>
+</div>
+<!-- ===============================================================================------- -->
+            <div class="form-group">
+                <label for="storyContent">القصة كاملة:</label>
+                <textarea id="storyContent" placeholder="اكتب تفاصيل قصتك هنا..." rows="8" required></textarea>
+            </div>
+            
+            <!-- الأزرار يجب أن تكون داخل النموذج -->
+            <div class="modal-actions">
+                <button type="submit" id="submitStory">إرسال القصة</button>
+                <button type="button" id="cancelStory">إلغاء</button>
+            </div>
+        </form>
+    </div>
+</div>
+    <!-- نافذة القصة الكاملة -->
+    <div id="story-modal" class="story-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <img id="modal-image" src="" alt="صورة القصة">
+                <div id="modal-category" class="modal-category"> </div>
+                <button class="close-modal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <h2 id="modal-title"> </h2>
+                <div class="modal-meta">
+                    <!-- <span id="modal-date"><i class="far fa-calendar"></i> 15 مارس 2024</span> -->
+                    <span id="modal-time"><i class="far fa-clock"></i>  </span>
+                </div>
+                <div id="modal-content">
+                    <!-- محتوى القصة الكاملة سيتم إدراجه هنا -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+
+
+
+
+
+
+
+
+    <div id="footer-placeholder"></div>
+   
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+ <script src="stories.js"></script>
+</body>
+</html>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

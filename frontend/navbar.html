@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+ 
+    <style>
+        :root {
+            --primary-color: #3B82F6;
+            --secondary-color: #2563EB;
+            --accent-color: #1E40AF;
+            --text-color: #1F2937;
+            --light-bg: #F0F4F8;
+            --white: #FFFFFF;
+            --border-color: #BFDBFE;
+            --shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background-color: var(--light-bg);
+            color: var(--text-color);
+            line-height: 1.6;
+            padding: 0;
+            margin: 0;
+            padding-top: 70px; 
+        }
+
+        .navbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: #fff;
+            padding: 10px 25px;
+            box-shadow: var(--shadow);
+             position: fixed;
+    top: 0;         
+    left: 0;        
+    width: 100%;   
+    z-index: 1000;  
+        }
+
+        .logo-container {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: var(--primary-dark);
+            font-weight: 700;
+            font-size: 26px;
+            text-decoration: none;
+            transition: transform 0.3s ease;
+            flex-shrink: 0;
+        }
+        .logo:hover {
+            transform: scale(1.05);
+        }
+        .logo img {
+            width: 48px;
+            height: auto;
+            transition: transform 0.4s ease;
+        }
+        .logo:hover img {
+            transform: rotate(10deg);
+        }
+
+        .logo span {
+            color: var(--primary-color); 
+            font-weight: 700; 
+            font-size: 26px;
+        }
+        
+        .nav-links { 
+            display: flex; 
+            gap: 5px; 
+            align-items: center;
+            flex-wrap: wrap;
+            margin: 0 20px;
+            margin-left: auto;
+        } 
+        
+        .nav-links a {
+            text-decoration: none; 
+            color: var(--text-color);
+            font-weight: 600; 
+            font-size: 1rem;
+            padding: 8px 12px;
+            border-radius: 6px;
+            position: relative; 
+            transition: all 0.3s ease; 
+        } 
+        
+        .nav-links a:not(.dropdown-toggle):hover {
+            background-color: #f5f9ff;
+        }
+        
+        .nav-links a::after { 
+            content: ''; 
+            position: absolute; 
+            bottom: -2px;
+            left: 50%; 
+            transform: translateX(-50%); 
+            width: 0; 
+            height: 2px;
+            background: var(--primary-color);
+            transition: width 0.3s ease;
+        } 
+        
+        .nav-links a:hover::after { 
+            width: 80%; 
+        }
+        
+        .auth-container {
+            display: flex;
+            align-items: center;
+        }
+        
+        .auth-link {
+         
+            color:var(--text-color);
+            padding: 8px 20px;
+            border-radius: 6px;
+            text-decoration: none;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+        
+        .auth-link:hover {
+            background-color: var(--secondary-color);
+            transform: translateY(-2px);
+        }
+        
+        .dropdown {
+            position: relative;
+        }
+        
+        .dropdown-content {
+            display: none;
+            position: absolute;
+            background: #fff;
+            min-width: 200px;
+            box-shadow: var(--shadow);
+            border-radius: 8px;
+            top: 100%;
+            right: 0;
+            z-index: 1000;
+            flex-direction: column;
+            white-space: nowrap;
+            animation: fadeIn 0.3s ease;
+            padding: 8px 0;
+            border: 1px solid var(--border-color);
+            margin-top: 10px;
+        }
+        
+        .dropdown-content a {
+            padding: 10px 16px;
+            color: var(--text-color);
+            font-weight: 500;
+            transition: all 0.2s ease;
+            border-bottom: 1px solid #f0f0f0;
+        }
+        
+        .dropdown-content a:last-child {
+            border-bottom: none;
+        }
+        
+        .dropdown-content a:hover {
+            background: var(--primary-color);
+           color:  var(--text-color); 
+            padding-right: 20px;
+        }
+        
+        .dropdown:hover .dropdown-content {
+            display: flex;
+        }
+
+        .menu-toggle {
+            display: none;
+            font-size: 1.8rem;
+            cursor: pointer;
+            color: var(--text-color);
+            padding: 5px;
+            transition: all 0.3s ease;
+            z-index: 1000;
+        }
+        
+        .menu-toggle:hover {
+            color: var(--primary-color);
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Media Queries */
+        @media (max-width: 992px) {
+            .navbar {
+                flex-wrap: wrap;
+            }
+            
+            .menu-toggle {
+                display: block;
+            }
+
+            .nav-links {
+                display: none;
+                flex-direction: column;
+                align-items: stretch;
+                width: 100%;
+                background: #fff;
+                box-shadow: var(--shadow);
+                padding: 15px;
+                z-index: 999;
+                order: 3;
+                margin-top: 10px;
+                border-radius: 8px;
+                gap: 0;
+                margin: 10px 0 0 0;
+            }
+
+            .nav-links.active {
+                display: flex;
+            }
+            
+            .nav-links a, .dropdown {
+                width: 100%;
+                text-align: right;
+                border-bottom: 1px solid #eee;
+                padding: 12px 0;
+            }
+            
+            .nav-links a::after {
+                display: none;
+            }
+            
+            .dropdown-content {
+                position: static;
+                box-shadow: none;
+                padding: 10px 0;
+                margin-top: 10px;
+                width: 100%;
+                background: #f9f9f9;
+                display: none;
+                border: none;
+                border-radius: 0;
+                animation: none;
+            }
+            
+            .dropdown.active .dropdown-content {
+                display: flex;
+            }
+            
+            .auth-container {
+                margin-right: auto;
+                margin-left: 15px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .navbar {
+                padding: 10px 15px;
+            }
+            
+            .logo span {
+                font-size: 20px;
+            }
+            
+            .logo img {
+                width: 36px;
+            }
+            
+            .logo-container {
+                gap: 10px;
+            }
+        }
+    </style>
+</head>
+
+    <header>
+        <div class="navbar">
+            <div class="logo-container">
+                <div class="menu-toggle" id="menuToggle">☰</div>
+                <a href="#" class="logo">
+                    <img src="images/logo.png" alt="شعار GiveHope">
+                    <span>GiveHope</span>
+                </a>
+
+                
+            </div>
+
+            <nav class="nav-links" id="navLinks">
+                <a href="HomePage.html">الرئيسية</a>
+                <a href="ShowAllCasess.html">عرض جميع الحالات</a>
+                  <a href="#">تقديم طلب دعم</a>
+
+                <div class="dropdown">
+                    <a href="#" class="dropdown-toggle">خدماتنا ▼</a>
+                    <div class="dropdown-content">
+                        <a href="#">المشاريع</a>
+                        <a href="#">الكفالات</a>
+                        <a href="donationcampaigns.html">حملات التبرع</a>
+                        <a href="zakat.html">زكاة المال</a>
+                    </div>
+                </div>
+                
+                <div class="dropdown">
+                    <a href="#" class="dropdown-toggle">حسابي ▼</a>
+                    <div class="dropdown-content">
+                        <a href="#">تتبع حاله طلبي (صفحه المُستفيد)</a>
+                        <a href="Thedonor.html">تتبع تبرعاتي (صفحه المُتبرع)</a>
+                    </div>
+                </div>
+                
+                <div class="dropdown">
+                    <a href="#" class="dropdown-toggle">أكثر ▼</a>
+                    <div class="dropdown-content">
+                        <a href="#">إحصائيات</a>
+                        <a href="pages/notifications.html">أبرز المحسنين</a>
+                        <a href="stories.html">قصص النجاح</a>
+                    </div>
+                </div>
+            </nav>
+
+            <div class="auth-container">
+                <a href="login.html" class="auth-link">تسجيل الدخول</a>
+            </div>
+        </div>
+    </header>
+
+  
+    <script >
+
+
+
+        document.addEventListener('DOMContentLoaded', function() {
+            const menuToggle = document.getElementById('menuToggle');
+            const navLinks = document.getElementById('navLinks');
+            
+            
+            menuToggle.addEventListener('click', function(e) {
+                e.stopPropagation();
+                navLinks.classList.toggle('active');
+            });
+            
+          
+            document.addEventListener('click', function(e) {
+                if (!e.target.closest('.navbar')) {
+                    navLinks.classList.remove('active');
+                    document.querySelectorAll('.dropdown').forEach(dropdown => {
+                        dropdown.classList.remove('active');
+                    });
+                }
+            });
+            
+          
+            navLinks.addEventListener('click', function(e) {
+                e.stopPropagation();
+            });
+            
+            document.querySelectorAll('.dropdown-toggle').forEach(item => {
+                item.addEventListener('click', function(e) {
+                    if (window.innerWidth <= 992) {
+                        e.preventDefault();
+                        const dropdown = this.parentNode;
+                        dropdown.classList.toggle('active');
+                        
+                        document.querySelectorAll('.dropdown').forEach(d => {
+                            if (d !== dropdown) {
+                                d.classList.remove('active');
+                            }
+                        });
+                    }
+                });
+            });
+            
+            window.addEventListener('resize', function() {
+                if (window.innerWidth > 992) {
+                    navLinks.classList.remove('active');
+                    document.querySelectorAll('.dropdown').forEach(dropdown => {
+                        dropdown.classList.remove('active');
+                    });
+                }
+            });
+        });
+
+    </script>
+
+</html>
