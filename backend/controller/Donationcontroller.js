@@ -1,6 +1,7 @@
 
 
 
+
 const asyncHandler = require("express-async-handler");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
@@ -12,10 +13,16 @@ const mongoose = require('mongoose');
 const nodemailer = require('nodemailer');
 
 const Donation = require('../model/Donationmodel.js');
-const ShowAllCases = require('../model/ShowAllCasessmodel.js');  
-const ReceiptService = require('../ReceiptService.js');
 
-const crypto = require('crypto');
+const ShowAllCases = require('../model/ShowAllCasessmodel.js'); 
+const Campaign = require('./backend/models/Campaign'); 
+ const Zakat = require('./backend/models/zakat.js'); 
+ const Sponsorship = require('./models/Sponsorship'); 
+ const projects = require('../../../DB/models/project.model.js'); 
+
+
+const ReceiptService = require('../ReceiptService.js');
+const crypto = require('crypto'); 
 const { encrypt } = require('../encryption.js');
 /*=================================================================================================*/
 
@@ -98,7 +105,7 @@ const TARGET_CURRENCY = 'ILS'; // العملة التي يتم التوحيد ع
 
 /*********************************************************** */
 exports.createDonation = async (req, res) => {
-    const { caseId, amount, currency, donorInfo, paymentMethod, transactionId, anonymous, author, authorName } = req.body;
+    const { caseId, amount, currency, donorInfo, paymentMethod, transactionId, anonymous, author, authorName, category = 'cases' } = req.body;
 
     const originalCurrency = currency ? currency.toUpperCase() : TARGET_CURRENCY; 
     const originalAmount = parseFloat(amount); 
@@ -111,7 +118,7 @@ exports.createDonation = async (req, res) => {
     }
 
     if (!mongoose.Types.ObjectId.isValid(caseId)) {
-        return res.status(400).json({ message: 'معرّف الحالة (caseId) غير صالح' });
+        return res.status(400).json({ message: 'معرّف العنصر (caseId) غير صالح' });
     }
 
     if (!SUPPORTED_CURRENCIES.includes(originalCurrency)) {
@@ -166,43 +173,162 @@ exports.createDonation = async (req, res) => {
     }
 
     try {
-        // البحث عن الحالة
-        const caseData = await ShowAllCases.findById(caseId);
+        // =================== تحديد النموذج بناءً على الفئة ===================
+        let Model;
+        let modelName;
+        let titleField;
+        let totalField;
+        let donatedField;
+        let emailField;
+        let authorField;
+        let statusField;
+        let donationsCountField;
+
+        switch(category) {
+            case 'cases':
+                Model = ShowAllCases;
+                modelName = 'Case';
+                titleField = 'title';
+                totalField = 'total';
+                donatedField = 'donated';
+                emailField = 'email';
+                authorField = 'author';
+                statusField = 'status';
+                donationsCountField = 'donationsCount';
+                break;
+                
+            case 'campaigns':
+                Model = Campaign;
+                modelName = 'Campaign';
+                titleField = 'title' in Campaign.schema.paths ? 'title' : 'name';
+                totalField = 'target_amount' in Campaign.schema.paths ? 'target_amount' : 'total';
+                donatedField = 'collected_amount' in Campaign.schema.paths ? 'collected_amount' : 'donated';
+                emailField = 'email' in Campaign.schema.paths ? 'email' : 'creator_email';
+                authorField = 'creator' in Campaign.schema.paths ? 'creator' : 'author';
+                statusField = 'status' in Campaign.schema.paths ? 'status' : 'is_active';
+                donationsCountField = 'donations_count' in Campaign.schema.paths ? 'donations_count' : 'donationsCount';
+                break;
+                
+            case 'zakat':
+                Model = Zakat;
+                modelName = 'Zakat';
+                titleField = 'title' in Zakat.schema.paths ? 'title' : 'name';
+                totalField = 'target_amount' in Zakat.schema.paths ? 'target_amount' : 'amount';
+                donatedField = 'collected_amount' in Zakat.schema.paths ? 'collected_amount' : 'raised';
+                emailField = 'email' in Zakat.schema.paths ? 'email' : 'admin_email';
+                authorField = 'admin' in Zakat.schema.paths ? 'admin' : 'author';
+                statusField = 'status' in Zakat.schema.paths ? 'status' : 'is_active';
+                donationsCountField = 'donations_count' in Zakat.schema.paths ? 'donations_count' : 'donationsCount';
+                break;
+                
+            case 'sponsorships':
+                Model = Sponsorship;
+                modelName = 'Sponsorship';
+                titleField = 'title' in Sponsorship.schema.paths ? 'title' : 'name';
+                totalField = 'target_amount' in Sponsorship.schema.paths ? 'target_amount' : 'amount';
+                donatedField = 'collected_amount' in Sponsorship.schema.paths ? 'collected_amount' : 'donated';
+                emailField = 'email' in Sponsorship.schema.paths ? 'email' : 'sponsor_email';
+                authorField = 'sponsor' in Sponsorship.schema.paths ? 'sponsor' : 'author';
+                statusField = 'status' in Sponsorship.schema.paths ? 'status' : 'is_active';
+                donationsCountField = 'donations_count' in Sponsorship.schema.paths ? 'donations_count' : 'donationsCount';
+                break;
+                
+            case 'projects':
+                Model = projects;
+                modelName = 'Project';
+                titleField = 'title' in projects.schema.paths ? 'title' : 'project_name';
+                totalField = 'budget' in projects.schema.paths ? 'budget' : 'total_amount';
+                donatedField = 'raised_amount' in projects.schema.paths ? 'raised_amount' : 'collected';
+                emailField = 'email' in projects.schema.paths ? 'email' : 'project_manager_email';
+                authorField = 'manager' in projects.schema.paths ? 'manager' : 'author';
+                statusField = 'status' in projects.schema.paths ? 'status' : 'project_status';
+                donationsCountField = 'donations_count' in projects.schema.paths ? 'donations_count' : 'donationsCount';
+                break;
+                
+            default:
+                return res.status(400).json({ 
+                    message: 'فئة غير معروفة',
+                    details: `الفئة "${category}" غير مدعومة`,
+                    code: 'INVALID_CATEGORY'
+                });
+        }
+
+        console.log(`📁 استخدام النموذج: ${modelName} (الفئة: ${category})`);
+        console.log(`📊 حقول النموذج:`, {
+            titleField,
+            totalField,
+            donatedField,
+            emailField,
+            authorField,
+            statusField,
+            donationsCountField
+        });
+
+        // البحث عن العنصر في النموذج المناسب
+        const itemData = await Model.findById(caseId);
         
-        if (!caseData || caseData.status !== 'approved') {
-            return res.status(404).json({ message: 'الحالة غير موجودة أو غير معتمدة' });
+        if (!itemData) {
+            return res.status(404).json({ 
+                message: `${modelName} غير موجود`,
+                details: `لم يتم العثور على ${modelName} بالمعرّف ${caseId}`,
+                code: 'ITEM_NOT_FOUND'
+            });
+        }
+
+        // التحقق من حالة العنصر
+        let isValidStatus = true;
+        if (statusField && itemData[statusField]) {
+            if (category === 'cases') {
+                isValidStatus = itemData[statusField] === 'approved';
+            } else {
+                // للأنواع الأخرى، نتحقق من الحالة الفعالة
+                if (statusField === 'is_active') {
+                    isValidStatus = itemData[statusField] === true;
+                } else if (statusField === 'status') {
+                    isValidStatus = itemData[statusField] === 'active' || itemData[statusField] === 'approved';
+                }
+            }
+        }
+
+        if (!isValidStatus) {
+            return res.status(400).json({ 
+                message: `${modelName} غير نشط أو غير معتمد`,
+                details: `حالة ${modelName}: ${itemData[statusField]}`,
+                code: 'ITEM_NOT_ACTIVE'
+            });
         }
         
-        let caseOwnerId = null;
-        let caseOwnerEmail = caseData.email;
+        let itemOwnerId = null;
+        let itemOwnerEmail = itemData[emailField];
 
-        if (caseData.author && caseData.author.toString() !== 'undefined') {
-            caseOwnerId = caseData.author;
-            console.log('✅ استخدام author كـ caseOwnerId:', getUserIdForNotification(caseOwnerId, caseOwnerEmail));
+        if (authorField && itemData[authorField] && itemData[authorField].toString() !== 'undefined') {
+            itemOwnerId = itemData[authorField];
+            console.log('✅ استخدام author كـ itemOwnerId:', getUserIdForNotification(itemOwnerId, itemOwnerEmail));
         } 
-        else if (caseOwnerEmail) {
-            caseOwnerId = `email_${caseOwnerEmail.replace(/[^a-zA-Z0-9]/g, '_')}`;
-            console.log('✅ إنشاء معرف من البريد الإلكتروني:', caseOwnerId);
+        else if (itemOwnerEmail) {
+            itemOwnerId = `email_${itemOwnerEmail.replace(/[^a-zA-Z0-9]/g, '_')}`;
+            console.log('✅ إنشاء معرف من البريد الإلكتروني:', itemOwnerId);
         }
 
-        console.log('🔍 معلومات صاحب الحالة المحدثة:', {
-            caseOwnerId,
-            caseOwnerEmail,
-            authorExistsInDB: !!caseData.author
+        console.log('🔍 معلومات صاحب العنصر:', {
+            modelName,
+            itemOwnerId,
+            itemOwnerEmail,
+            authorExistsInDB: !!(authorField && itemData[authorField])
         });
 
-        console.log('🔍 معلومات صاحب الحالة من DB:', {
-            caseId: caseData._id,
-            caseTitle: caseData.title,
-            caseOwnerId: caseOwnerId ? getUserIdForNotification(caseOwnerId, caseOwnerEmail) : null,
-            caseOwnerEmail,
-            authorName: caseData.authorName,
-            isEmailValid: emailRegex.test(caseOwnerEmail)
+        console.log('🔍 تفاصيل العنصر من DB:', {
+            itemId: itemData._id,
+            itemTitle: itemData[titleField],
+            itemOwnerId: itemOwnerId ? getUserIdForNotification(itemOwnerId, itemOwnerEmail) : null,
+            itemOwnerEmail,
+            authorName: itemData.authorName,
+            isEmailValid: itemOwnerEmail && emailRegex.test(itemOwnerEmail)
         });
 
-        // تحقق من صحة بريد صاحب الحالة
-        if (!caseOwnerEmail || !emailRegex.test(caseOwnerEmail)) {
-            console.error('❌ بريد صاحب الحالة غير صالح:', caseOwnerEmail);
+        // تحقق من صحة بريد صاحب العنصر
+        if (itemOwnerEmail && !emailRegex.test(itemOwnerEmail)) {
+            console.error('❌ بريد صاحب العنصر غير صالح:', itemOwnerEmail);
         }
 
         // التحقق من أن transactionId غير مكرر
@@ -214,13 +340,14 @@ exports.createDonation = async (req, res) => {
             });
         }
 
-        const requiredAmount = caseData.total;
-        const donatedAmount = caseData.donated || 0; 
+        // حساب المبالغ
+        const requiredAmount = parseFloat(itemData[totalField]) || 0;
+        const donatedAmount = parseFloat(itemData[donatedField]) || 0; 
         const remainingAmount = requiredAmount - donatedAmount;
 
         if (remainingAmount <= 0) {
             return res.status(400).json({ 
-                message: 'عذراً، هذه الحالة اكتملت بالكامل بفضل المتبرعين.',
+                message: `عذراً، هذا ${modelName} اكتمل بالكامل بفضل المتبرعين.`,
                 status: 'completed'
             });
         }
@@ -228,7 +355,7 @@ exports.createDonation = async (req, res) => {
         if (amountInILS > remainingAmount) {
             const maxAllowed = remainingAmount.toFixed(2);
             return res.status(400).json({ 
-                message: `عذراً، المبلغ المتبرع به (${amountInILS} ${TARGET_CURRENCY}) يتجاوز المبلغ المتبقي للحالة. الحد الأقصى المسموح به هو ${maxAllowed} ${TARGET_CURRENCY}.`,
+                message: `عذراً، المبلغ المتبرع به (${amountInILS} ${TARGET_CURRENCY}) يتجاوز المبلغ المتبقي. الحد الأقصى المسموح به هو ${maxAllowed} ${TARGET_CURRENCY}.`,
                 maxAllowed,
                 remainingAmount
             });
@@ -272,7 +399,8 @@ exports.createDonation = async (req, res) => {
         // =================== إنشاء التبرع ===================
         const newDonation = new Donation({
             caseId,
-            title: caseData.title,
+            category, // حفظ الفئة في التبرع
+            title: itemData[titleField],
             amount: amountInILS,
             originalAmount,
             originalCurrency,
@@ -281,7 +409,8 @@ exports.createDonation = async (req, res) => {
             paymentMethod,
             transactionId,
             author: donationAuthorId,
-            authorName: donationAuthorName
+            authorName: donationAuthorName,
+            modelType: modelName // حفظ نوع النموذج
         });
 
         await newDonation.save();
@@ -290,7 +419,9 @@ exports.createDonation = async (req, res) => {
             donationId: newDonation._id,
             isAnonymous,
             donorEmail: originalDonorData.email,
-            encrypted: true
+            encrypted: true,
+            category,
+            modelType: modelName
         });
 
         // =================== إشعار للمتبرع (باستخدام البيانات الأصلية) ===================
@@ -303,13 +434,15 @@ exports.createDonation = async (req, res) => {
         await NotificationService.createNotification({
             user: notificationUserId,
             title: '🎉 تم التبرع بنجاح! شكراً لك.',
-            message: `شكرا لدعمك حالة "${caseData.title}" بمبلغ ${amountInILS} شيكل. سيصلك إيصال عبر البريد.`,
+            message: `شكرا لدعمك ${modelName} "${itemData[titleField]}" بمبلغ ${amountInILS} شيكل. سيصلك إيصال عبر البريد.`,
             type: 'donation_thanks',
-            channels: ['dashboard', 'email'],
-            referenceId: caseData._id,
+            channels: ['dashboard', 'push','email'],
+            referenceId: itemData._id,
             metadata: {
                 donationId: newDonation._id,
-                caseId: caseId,
+                itemId: caseId,
+                category: category,
+                modelType: modelName,
                 amount: amountInILS,
                 originalAmount: originalAmount,
                 originalCurrency: originalCurrency,
@@ -321,42 +454,42 @@ exports.createDonation = async (req, res) => {
                 // ⭐️ البيانات الأصلية غير المشفرة للمتبرع
                 donorInfo: originalDonorData,
                 
-                // ⭐️ بيانات الحالة
-                caseData: {
-                    _id: caseData._id,
-                    title: caseData.title,
-                    status: caseData.status,
-                    email: caseData.email
+                // ⭐️ بيانات العنصر
+                itemData: {
+                    _id: itemData._id,
+                    title: itemData[titleField],
+                    status: itemData[statusField],
+                    email: itemData[emailField]
                 },
                 
                 // ⭐️ بيانات إضافية
                 userEmail: originalDonorData.email,
-                caseOwnerEmail: caseOwnerEmail,
-                caseItemTitle: caseData.title,
+                itemOwnerEmail: itemOwnerEmail,
+                itemTitle: itemData[titleField],
                 isAnonymous: isAnonymous,
                 donatedAmount: amountInILS,
-                category: caseData.category
+                category: category
             }
         });
 
         console.log('📧 إشعار الشكر تم إرساله إلى المتبرع:', originalDonorData.email);
 
-        // =================== إشعار لصاحب الحالة ===================
-        if (caseOwnerEmail) {
-            const safeUserId = getUserIdForNotification(caseOwnerId, caseOwnerEmail);
+        // =================== إشعار لصاحب العنصر ===================
+        if (itemOwnerEmail) {
+            const safeUserId = getUserIdForNotification(itemOwnerId, itemOwnerEmail);
             
-            if (caseOwnerEmail !== originalDonorData.email) {
+            if (itemOwnerEmail !== originalDonorData.email) {
                 await NotificationService.createNotification({
                     user: safeUserId,
-                    title: '📬 وصلك تبرع جديد لحالتك!',
-                    message: `قام شخص ${isAnonymous ? 'مجهول' : ''} بالتبرع لحالتك "${caseData.title}" بمبلغ ${amountInILS} شيكل.`,
+                    title: `📬 وصلك تبرع جديد لـ ${modelName} الخاص بك!`,
+                    message: `قام شخص ${isAnonymous ? 'مجهول' : ''} بالتبرع لـ ${modelName} "${itemData[titleField]}" بمبلغ ${amountInILS} شيكل.`,
                     type: 'new_donation',
                     channels: ['dashboard', 'push', 'email'],
-                    referenceId: caseData._id,
-                    link: `/casedetails/${caseId}`,
+                    referenceId: itemData._id,
+                    link: `/itemdetails/${caseId}?category=${category}`,
                     metadata: {
-                        // ⭐️ بريد صاحب الحالة
-                        caseOwnerEmail: caseOwnerEmail,
+                        // ⭐️ بريد صاحب العنصر
+                        itemOwnerEmail: itemOwnerEmail,
                         
                         // ⭐️ بيانات المتبرع حسب المجهولية
                         donorInfo: isAnonymous ? {
@@ -364,11 +497,11 @@ exports.createDonation = async (req, res) => {
                             email: 'مجهول'
                         } : originalDonorData,
                         
-                        // ⭐️ بيانات الحالة
-                        caseData: {
-                            _id: caseData._id,
-                            title: caseData.title,
-                            email: caseData.email
+                        // ⭐️ بيانات العنصر
+                        itemData: {
+                            _id: itemData._id,
+                            title: itemData[titleField],
+                            email: itemData[emailField]
                         },
                         
                         // ⭐️ معلومات التبرع
@@ -379,64 +512,87 @@ exports.createDonation = async (req, res) => {
                         },
                         
                         // ⭐️ بيانات إضافية
-                        caseItemTitle: caseData.title,
+                        itemTitle: itemData[titleField],
                         isAnonymous: isAnonymous,
-                        category: caseData.category,
+                        category: category,
                         donatedAmount: amountInILS,
-                        userEmail: caseOwnerEmail
+                        userEmail: itemOwnerEmail,
+                        modelType: modelName
                     }
                 });
                 
-                console.log(`📧 إشعار جديد للتبرع أرسل لصاحب الحالة: ${caseOwnerEmail}`);
+                console.log(`📧 إشعار جديد للتبرع أرسل لصاحب ${modelName}: ${itemOwnerEmail}`);
             } else {
-                console.log('ℹ️ صاحب الحالة هو نفس المتبرع، لا حاجة لإرسال إشعار منفصل');
+                console.log(`ℹ️ صاحب ${modelName} هو نفس المتبرع، لا حاجة لإرسال إشعار منفصل`);
             }
         } else {
-            console.warn('⚠️ لا يمكن إرسال إشعار لصاحب الحالة: caseOwnerEmail غير موجود');
+            console.warn(`⚠️ لا يمكن إرسال إشعار لصاحب ${modelName}: itemOwnerEmail غير موجود`);
         }
 
-        // =================== تحديث الحالة ===================
-        await ShowAllCases.findByIdAndUpdate(
-            caseId,
-            { $inc: { donated: amountInILS, donationsCount: 1 } }
-        );
+        // =================== تحديث العنصر ===================
+        const updateData = {};
+        updateData[donatedField] = (parseFloat(itemData[donatedField]) || 0) + amountInILS;
+        
+        if (donationsCountField) {
+            updateData[donationsCountField] = (itemData[donationsCountField] || 0) + 1;
+        }
 
-        // التحقق إذا اكتملت الحالة
-        const updatedCase = await ShowAllCases.findById(caseId);
-        if (updatedCase.donated >= updatedCase.total && updatedCase.status !== 'funded') {
-            await ShowAllCases.findByIdAndUpdate(caseId, { 
-                status: 'funded',
-                completedAt: new Date()
-            });
+        await Model.findByIdAndUpdate(caseId, { $set: updateData });
 
-            // إشعار لصاحب الحالة بإكمال التمويل
-            if (caseOwnerEmail) {
-                const safeUserId = getUserIdForNotification(caseOwnerId, caseOwnerEmail);
+        // التحقق إذا اكتمل العنصر
+        const updatedItem = await Model.findById(caseId);
+        const currentDonated = parseFloat(updatedItem[donatedField]) || 0;
+        const currentTotal = parseFloat(updatedItem[totalField]) || 0;
+
+        if (currentDonated >= currentTotal) {
+            let statusUpdate = {};
+            
+            if (category === 'cases') {
+                statusUpdate = { 
+                    status: 'funded',
+                    completedAt: new Date()
+                };
+            } else {
+                // للأنواع الأخرى، نضع حالة completed أو نقوم بإغلاق العنصر
+                if (statusField === 'status') {
+                    statusUpdate[statusField] = 'completed';
+                } else if (statusField === 'is_active') {
+                    statusUpdate[statusField] = false;
+                }
+                statusUpdate.completedAt = new Date();
+            }
+
+            await Model.findByIdAndUpdate(caseId, statusUpdate);
+
+            // إشعار لصاحب العنصر بإكمال التمويل
+            if (itemOwnerEmail) {
+                const safeUserId = getUserIdForNotification(itemOwnerId, itemOwnerEmail);
                 await NotificationService.createNotification({
                     user: safeUserId,
-                    title: '🎉 اكتمل تمويل حالتك!',
-                    message: `مبروك! اكتمل تمويل حالتك "${caseData.title}" بالكامل.`,
-                    type: 'case_completed',
+                    title: `🎉 اكتمل تمويل ${modelName} الخاص بك!`,
+                    message: `مبروك! اكتمل تمويل ${modelName} "${itemData[titleField]}" بالكامل.`,
+                    type: 'item_completed',
                     channels: ['dashboard', 'push', 'email'],
-                    referenceId: caseData._id,
-                    link: `/casedetails/${caseId}`,
+                    referenceId: itemData._id,
+                    link: `/itemdetails/${caseId}?category=${category}`,
                     metadata: {
-                        caseOwnerEmail: caseOwnerEmail,
-                        caseData: {
-                            _id: caseData._id,
-                            title: caseData.title
+                        itemOwnerEmail: itemOwnerEmail,
+                        itemData: {
+                            _id: itemData._id,
+                            title: itemData[titleField]
                         },
                         donation: {
                             _id: newDonation._id,
                             amount: amountInILS
                         },
-                        caseItemTitle: caseData.title,
+                        itemTitle: itemData[titleField],
                         donatedAmount: amountInILS,
-                        userEmail: caseOwnerEmail
+                        userEmail: itemOwnerEmail,
+                        modelType: modelName
                     }
                 });
                 
-                console.log(`🎉 إشعار اكتمال التمويل أرسل لصاحب الحالة: ${caseOwnerEmail}`);
+                console.log(`🎉 إشعار اكتمال التمويل أرسل لصاحب ${modelName}: ${itemOwnerEmail}`);
             }
         }
 
@@ -445,28 +601,36 @@ exports.createDonation = async (req, res) => {
             donation: {
                 _id: newDonation._id,
                 caseId: newDonation.caseId,
+                category: newDonation.category,
+                modelType: newDonation.modelType,
                 amount: newDonation.amount,
                 anonymous: isAnonymous,
                 createdAt: newDonation.createdAt
             },
             convertedAmount: amountInILS,
             receiptEmail: originalDonorData.email,
-            caseOwnerNotified: caseOwnerEmail && caseOwnerEmail !== originalDonorData.email
+            itemOwnerNotified: itemOwnerEmail && itemOwnerEmail !== originalDonorData.email,
+            category: category,
+            modelName: modelName
         });
 
     } catch (error) {
         console.error('Donation creation error:', error);
         if (error.message.includes('toString')) {
             console.error('❌ الخطأ في toString() - تحقق من:', {
-                caseOwnerId: caseOwnerId,
-                caseData: caseData ? {
-                    _id: caseData._id,
-                    author: caseData.author,
-                    email: caseData.email
-                } : 'caseData is null'
+                itemOwnerId: itemOwnerId,
+                itemData: itemData ? {
+                    _id: itemData._id,
+                    author: authorField ? itemData[authorField] : undefined,
+                    email: emailField ? itemData[emailField] : undefined
+                } : 'itemData is null'
             });
         }
-        res.status(500).json({ message: 'خطأ في إنشاء التبرع', error: error.message });
+        res.status(500).json({ 
+            message: 'خطأ في إنشاء التبرع', 
+            error: error.message,
+            category: category
+        });
     }
 };
 
