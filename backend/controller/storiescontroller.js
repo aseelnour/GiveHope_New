@@ -76,6 +76,11 @@ exports.getstories = async (req, res) => {
 const allcases = require("../model/ShowAllCasessmodel.js");
 const Donation = require("../model/Donationmodel");
 
+const Campaign = require('./backend/models/Campaign'); 
+ const Zakat = require('./backend/models/zakat.js'); 
+ const Sponsorship = require('./models/Sponsorship'); 
+ const projects = require('../../../DB/models/project.model.js'); 
+
 exports.createStory = async (req, res) => {
   try {
     console.log('🔍 بيانات الطلب الكاملة:', req.body);
@@ -89,11 +94,9 @@ exports.createStory = async (req, res) => {
     if (authorName) {
       userName = authorName;
     } else if (req.user) {
-   
       userName = `${req.user.firstName || ''} ${req.user.lastName || ''}`.trim();
     }
     
-  
     if (!userName || userName.trim() === '') {
       userName = req.user?.email || 'مجهول';
     }
@@ -150,42 +153,202 @@ exports.createStory = async (req, res) => {
       });
     }
 
-    // التحقق إذا المستخدم مؤهل
-    const [hasDonated, hasBenefitedCase] = await Promise.all([
-      Donation.findOne({ author: userId }),
-      allcases.findOne({ 
-        author: userId,
-        donated: { $gt: 0 },
-        status: { $in: ['funded'] }
-      })
-    ]);
+    // ================ التعديل: التحقق من جميع النماذج ================
+    console.log('🔍 التحقق من أهلية المستخدم عبر جميع النماذج...');
 
-    console.log('✅ نتيجة التحقق:', {
-      hasDonated: !!hasDonated,
-      hasBenefitedCase: !!hasBenefitedCase,
-      userId: userId
+    // 1. التحقق من التبرعات في نموذج Donation
+    const hasDonated = await Donation.findOne({ 
+      $or: [
+        { author: userId },
+        { authorId: userId },
+        { 'donorInfo.email': req.user?.email }
+      ]
     });
 
-    // التحقق من الأهلية
-    if (!hasDonated && !hasBenefitedCase) {
+    // 2. التحقق من الحالات في allcases
+    const hasBenefitedCase = await allcases.findOne({ 
+      $or: [
+        { author: userId },
+        { email: req.user?.email }
+      ],
+      donated: { $gt: 0 },
+      status: { $in: ['funded', 'completed'] }
+    });
+
+    // 3. التحقق من الحملات في Campaign
+    const hasBenefitedCampaign = await Campaign.findOne({
+      $or: [
+        { creator: userId },
+        { creatorId: userId },
+        { email: req.user?.email }
+      ],
+      $or: [
+        { collected_amount: { $gt: 0 } },
+        { donated: { $gt: 0 } },
+        { raised: { $gt: 0 } }
+      ],
+      $or: [
+        { status: { $in: ['completed', 'funded', 'successful'] } },
+        { is_active: false }
+      ]
+    });
+
+    // 4. التحقق من الزكاة في Zakat
+    const hasBenefitedZakat = await Zakat.findOne({
+      $or: [
+        { admin: userId },
+        { adminId: userId },
+        { email: req.user?.email }
+      ],
+      $or: [
+        { collected_amount: { $gt: 0 } },
+        { donated: { $gt: 0 } },
+        { raised: { $gt: 0 } }
+      ],
+      $or: [
+        { status: { $in: ['completed', 'funded', 'successful'] } },
+        { is_active: false }
+      ]
+    });
+
+    // 5. التحقق من الكفالات في Sponsorship
+    const hasBenefitedSponsorship = await Sponsorship.findOne({
+      $or: [
+        { sponsor: userId },
+        { sponsorId: userId },
+        { email: req.user?.email }
+      ],
+      $or: [
+        { collected_amount: { $gt: 0 } },
+        { donated: { $gt: 0 } },
+        { raised: { $gt: 0 } }
+      ],
+      $or: [
+        { status: { $in: ['completed', 'funded', 'successful'] } },
+        { is_active: false }
+      ]
+    });
+
+    // 6. التحقق من المشاريع في projects
+    const hasBenefitedProject = await projects.findOne({
+      $or: [
+        { manager: userId },
+        { managerId: userId },
+        { email: req.user?.email }
+      ],
+      $or: [
+        { raised_amount: { $gt: 0 } },
+        { collected: { $gt: 0 } },
+        { donated: { $gt: 0 } }
+      ],
+      $or: [
+        { status: { $in: ['completed', 'funded', 'successful'] } },
+        { project_status: { $in: ['completed', 'finished'] } }
+      ]
+    });
+
+    console.log('✅ نتائج التحقق من الأهلية:', {
+      hasDonated: !!hasDonated,
+      hasBenefitedCase: !!hasBenefitedCase,
+      hasBenefitedCampaign: !!hasBenefitedCampaign,
+      hasBenefitedZakat: !!hasBenefitedZakat,
+      hasBenefitedSponsorship: !!hasBenefitedSponsorship,
+      hasBenefitedProject: !!hasBenefitedProject,
+      userId: userId,
+      userEmail: req.user?.email
+    });
+
+    // التحقق من الأهلية (أي شرط يفي بالمتطلبات)
+    const isEligible = hasDonated || 
+                      hasBenefitedCase || 
+                      hasBenefitedCampaign || 
+                      hasBenefitedZakat || 
+                      hasBenefitedSponsorship || 
+                      hasBenefitedProject;
+
+    if (!isEligible) {
       return res.status(403).json({
         success: false,
         message: "غير مسموح بكتابة القصص",
         requirements: [
-          "يجب أن تكون متبرع سابق في المنصة",
-          "أو صاحب حالة مكتملة استفادت من التبرعات"
-        ]
+          "يجب أن تكون متبرع سابق في المنصة في أي من الأقسام (حالات، حملات، زكاة، كفالات، مشاريع)",
+          "أو صاحب حالة/حملة/مشروع مكتمل استفاد من التبرعات"
+        ],
+        userInfo: {
+          userId: userId,
+          email: req.user?.email,
+          checkedModels: ['Donation', 'Cases', 'Campaigns', 'Zakat', 'Sponsorships', 'Projects']
+        }
       });
     }
 
-    // تحديد نوع المستخدم للقصة
+    // تحديد نوع و دور المستخدم للقصة
     let userRole = '';
-    if (hasDonated && hasBenefitedCase) {
-      userRole = 'donor_and_beneficiary';
-    } else if (hasDonated) {
+    let relatedModels = [];
+
+    if (hasDonated) {
       userRole = 'donor';
-    } else {
-      userRole = 'beneficiary';
+      relatedModels.push('donation');
+    }
+
+    // تحديد النماذج التي استفاد منها المستخدم
+    if (hasBenefitedCase) {
+      userRole = userRole ? 'donor_and_beneficiary' : 'beneficiary';
+      relatedModels.push('case');
+    }
+    
+    if (hasBenefitedCampaign) {
+      userRole = userRole ? 'donor_and_beneficiary' : 'beneficiary';
+      relatedModels.push('campaign');
+    }
+    
+    if (hasBenefitedZakat) {
+      userRole = userRole ? 'donor_and_beneficiary' : 'beneficiary';
+      relatedModels.push('zakat');
+    }
+    
+    if (hasBenefitedSponsorship) {
+      userRole = userRole ? 'donor_and_beneficiary' : 'beneficiary';
+      relatedModels.push('sponsorship');
+    }
+    
+    if (hasBenefitedProject) {
+      userRole = userRole ? 'donor_and_beneficiary' : 'beneficiary';
+      relatedModels.push('project');
+    }
+
+    // حفظ معلومات النماذج المتعلقة
+    const relatedData = {
+      models: relatedModels,
+      details: {}
+    };
+
+    // حفظ تفاصيل التبرعات إذا وجدت
+    if (hasDonated) {
+      relatedData.details.donation = {
+        id: hasDonated._id,
+        amount: hasDonated.amount,
+        date: hasDonated.createdAt
+      };
+    }
+
+    // حفظ تفاصيل الحالات/الحملات/المشاريع المستفادة
+    if (hasBenefitedCase) {
+      relatedData.details.case = {
+        id: hasBenefitedCase._id,
+        title: hasBenefitedCase.title,
+        totalAmount: hasBenefitedCase.total,
+        donatedAmount: hasBenefitedCase.donated
+      };
+    }
+
+    if (hasBenefitedCampaign) {
+      relatedData.details.campaign = {
+        id: hasBenefitedCampaign._id,
+        title: hasBenefitedCampaign.title || hasBenefitedCampaign.name,
+        targetAmount: hasBenefitedCampaign.target_amount || hasBenefitedCampaign.total,
+        collectedAmount: hasBenefitedCampaign.collected_amount || hasBenefitedCampaign.donated
+      };
     }
 
     // إعداد بيانات القصة
@@ -198,46 +361,84 @@ exports.createStory = async (req, res) => {
       currency: currency || 'ILS',
       author: userId,
       authorName: userName,
-      userRole: userRole
+      userRole: userRole,
+      relatedModels: relatedData,
+      userEmail: req.user?.email || null,
+      eligibilityProof: {
+        hasDonated: !!hasDonated,
+        hasBenefited: {
+          case: !!hasBenefitedCase,
+          campaign: !!hasBenefitedCampaign,
+          zakat: !!hasBenefitedZakat,
+          sponsorship: !!hasBenefitedSponsorship,
+          project: !!hasBenefitedProject
+        }
+      }
     };
 
     console.log('📤 بيانات القصة للإرسال:', storyData);
-console.log('🔍 فحص نهائي للبيانات:', {
-  storyData: storyData,
-  fieldsCheck: {
-    title: !!storyData.title,
-    category: !!storyData.category,
-    type: !!storyData.type,
-    content: !!storyData.content,
-    author: !!storyData.author,
-    authorName: !!storyData.authorName,
-    authorNameValue: storyData.authorName,
-    authorNameType: typeof storyData.authorName
-  }
-});
+    
+    console.log('🔍 فحص نهائي للبيانات:', {
+      storyData: storyData,
+      fieldsCheck: {
+        title: !!storyData.title,
+        category: !!storyData.category,
+        type: !!storyData.type,
+        content: !!storyData.content,
+        author: !!storyData.author,
+        authorName: !!storyData.authorName,
+        authorNameValue: storyData.authorName,
+        authorNameType: typeof storyData.authorName
+      }
+    });
 
-if (!storyData.authorName || storyData.authorName === undefined) {
-  console.error('❌ authorName is undefined! Using fallback');
-  storyData.authorName = 'مجهول';
-}
+    if (!storyData.authorName || storyData.authorName === undefined) {
+      console.warn('⚠️ authorName is undefined! Using fallback');
+      storyData.authorName = 'مجهول';
+    }
 
-// تحقق من أن جميع الحقول المطلوبة موجودة
-const requiredFields = ['title', 'category', 'type', 'content', 'author', 'authorName'];
-for (const field of requiredFields) {
-  if (!storyData[field]) {
-    console.error(`❌ حقل ${field} مفقود:`, storyData[field]);
-  }
-}
+    // تحقق من أن جميع الحقول المطلوبة موجودة
+    const requiredFields = ['title', 'category', 'type', 'content', 'author', 'authorName'];
+    for (const field of requiredFields) {
+      if (!storyData[field]) {
+        console.error(`❌ حقل ${field} مفقود:`, storyData[field]);
+      }
+    }
+
     // إنشاء القصة
     const newStory = new Story(storyData);
     const savedStory = await newStory.save();
     
     console.log('✅ تم إنشاء القصة بنجاح:', savedStory._id);
 
+    // إضافة القصة للنماذج المستفادة (اختياري)
+    if (hasBenefitedCase) {
+      await allcases.findByIdAndUpdate(
+        hasBenefitedCase._id,
+        { $push: { stories: savedStory._id } }
+      );
+    }
+
+    if (hasBenefitedCampaign) {
+      await Campaign.findByIdAndUpdate(
+        hasBenefitedCampaign._id,
+        { $push: { stories: savedStory._id } }
+      );
+    }
+
     res.status(201).json({
       success: true,
       message: "تم إنشاء القصة بنجاح، جاري مراجعتها",
-      data: savedStory
+      data: {
+        ...savedStory.toObject(),
+        eligibility: {
+          isEligible: true,
+          role: userRole,
+          relatedModels: relatedModels,
+          hasDonated: !!hasDonated,
+          hasBenefitedFrom: relatedModels.filter(m => m !== 'donation')
+        }
+      }
     });
 
   } catch (error) {
@@ -265,6 +466,7 @@ for (const field of requiredFields) {
     });
   }
 };
+
 
 /*======================================================================================================*/
 
@@ -356,20 +558,104 @@ exports.deleteUserStory = async (req, res) => {
 };
 
 /*=======================================================================================================*/
+
 exports.getUserStories = async (req, res) => {
-    try {
-        const stories = await Story.find({ user: req.user.id });
-      console.log( req.user.id);
-        if (stories.length === 0) {
-            return res.status(404).json({ message: 'ما في قصص لعرضها' });
+  try {
+    const userId = req.user.id || req.user._id;
+    
+    // البحث عن القصص الخاصة بالمستخدم
+    const stories = await Story.find({ author: userId })
+      .sort({ createdAt: -1 })
+      .select('title category type content donations currency status createdAt');
+    
+    // البحث عن جميع النشاطات للمستخدم
+    const [userDonations, userCases, userCampaigns, userZakat, userSponsorships, userProjects] = await Promise.all([
+      // التبرعات
+      Donation.find({ 
+        $or: [
+          { author: userId },
+          { authorId: userId },
+          { 'donorInfo.email': req.user?.email }
+        ]
+      }).select('amount currency createdAt'),
+      
+      // الحالات
+      allcases.find({ 
+        $or: [
+          { author: userId },
+          { email: req.user?.email }
+        ]
+      }).select('title total donated status'),
+      
+      // الحملات
+      Campaign.find({
+        $or: [
+          { creator: userId },
+          { creatorId: userId },
+          { email: req.user?.email }
+        ]
+      }).select('title target_amount collected_amount status'),
+      
+      // الزكاة
+      Zakat.find({
+        $or: [
+          { admin: userId },
+          { adminId: userId },
+          { email: req.user?.email }
+        ]
+      }).select('title target_amount collected_amount status'),
+      
+      // الكفالات
+      Sponsorship.find({
+        $or: [
+          { sponsor: userId },
+          { sponsorId: userId },
+          { email: req.user?.email }
+        ]
+      }).select('title target_amount collected_amount status'),
+      
+      // المشاريع
+      projects.find({
+        $or: [
+          { manager: userId },
+          { managerId: userId },
+          { email: req.user?.email }
+        ]
+      }).select('title budget raised_amount status')
+    ]);
+
+    res.status(200).json({
+      success: true,
+      data: {
+        stories: stories,
+        userActivity: {
+          donations: userDonations,
+          cases: userCases,
+          campaigns: userCampaigns,
+          zakat: userZakat,
+          sponsorships: userSponsorships,
+          projects: userProjects
+        },
+        eligibility: {
+          canCreateStory: userDonations.length > 0 || 
+                         userCases.some(c => c.donated > 0) ||
+                         userCampaigns.some(c => c.collected_amount > 0) ||
+                         userZakat.some(z => z.collected_amount > 0) ||
+                         userSponsorships.some(s => s.collected_amount > 0) ||
+                         userProjects.some(p => p.raised_amount > 0)
         }
+      }
+    });
 
-        res.json(stories);
-    } catch (error) {
-        res.status(500).json({ message: error.message });
-    }
+  } catch (error) {
+    console.error('❌ خطأ في جلب قصص المستخدم:', error);
+    res.status(500).json({
+      success: false,
+      message: 'حدث خطأ في الخادم',
+      error: error.message
+    });
+  }
 };
-
 /*=======================================================================================================*/
 exports.getPendingStories = async (req, res) => {
 
@@ -498,3 +784,9 @@ exports.getStats = async (req, res) => {
         res.status(500).json({ message: error.message });
     }
 };
+
+
+
+
+
+
