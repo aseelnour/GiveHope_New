@@ -1,4 +1,6 @@
 
+
+
     
     
 
@@ -81,13 +83,14 @@
         });
         
 
-  /*========================================================================================================*/
+  /*=============================================================================================*/
+
 document.addEventListener('DOMContentLoaded', function() {
     // 1. **التحقق من تسجيل الدخول فور تحميل الصفحة**
     const token = localStorage.getItem('token');
     function getAuthToken() {
-    return localStorage.getItem('token');
-}
+        return localStorage.getItem('token');
+    }
     const previousUrl = document.referrer || 'index.html';
 
     if (!token) {
@@ -102,8 +105,8 @@ document.addEventListener('DOMContentLoaded', function() {
             allowEscapeKey: true
         }).then((result) => {
             if (result.isConfirmed) {
-               localStorage.setItem('redirectUrl', window.location.href);
-            window.location.href = 'login.html';
+                localStorage.setItem('redirectUrl', window.location.href);
+                window.location.href = 'login.html';
             } else {
                 window.history.back();
             }
@@ -128,6 +131,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // الحصول على معرف الحالة من URL
     const urlParams = new URLSearchParams(window.location.search);
     const caseId = urlParams.get('id');
+    const category = urlParams.get('category') || 'cases'; // نوع القائمة: cases, campaigns, zakat, sponsorships, projects
     
     // عناصر DOM
     const caseTitle = document.getElementById('caseTitle');
@@ -155,30 +159,30 @@ document.addEventListener('DOMContentLoaded', function() {
         return /^\d{5,20}$/.test(idcard);
     }
 
-async function validateToken() {
-    const token = localStorage.getItem('token');
-    if (!token) return false;
+    async function validateToken() {
+        const token = localStorage.getItem('token');
+        if (!token) return false;
 
-    try {
-        const response = await fetch('http://localhost:5003/api/auth/validate-token', {
-            method: 'GET',
-            headers: { 'Authorization': `Bearer ${token}` }
-        });
+        try {
+            const response = await fetch('http://localhost:5003/api/auth/validate-token', {
+                method: 'GET',
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
 
-        if (response.status === 401) {
-            // توكن منتهي
-            return false;
-        } else if (!response.ok) {
-            // مشكلة مؤقتة بالسيرفر، لا نحذف التوكن
-            console.warn('Server error or network issue. Keeping token.');
+            if (response.status === 401) {
+                // توكن منتهي
+                return false;
+            } else if (!response.ok) {
+                // مشكلة مؤقتة بالسيرفر، لا نحذف التوكن
+                console.warn('Server error or network issue. Keeping token.');
+                return true; // نعتبره صالح مؤقتًا
+            }
+            return true;
+        } catch (err) {
+            console.error('Network error while validating token:', err);
             return true; // نعتبره صالح مؤقتًا
         }
-        return true;
-    } catch (err) {
-        console.error('Network error while validating token:', err);
-        return true; // نعتبره صالح مؤقتًا
     }
-}
 
     // التحقق من صحة التوكن عند تحميل الصفحة
     validateToken().then(isValid => {
@@ -191,8 +195,8 @@ async function validateToken() {
                 allowOutsideClick: false
             }).then((result) => {
                 localStorage.removeItem('token');
-                 localStorage.setItem('redirectUrl', window.location.href);
-            window.location.href = 'login.html';
+                localStorage.setItem('redirectUrl', window.location.href);
+                window.location.href = 'login.html';
             });
         }
     });
@@ -218,7 +222,7 @@ async function validateToken() {
     // زر الرجوع
     document.getElementById('backButton').addEventListener('click', function(e) {
         e.preventDefault();
-        window.location.href = `casedetails.html?id=${caseId}`;
+        window.location.href = `casedetails.html?id=${caseId}&category=${category}`;
     });
 
     // تحديث العملة عند تغيير الاختيار
@@ -226,275 +230,381 @@ async function validateToken() {
         currency = this.value;
         updateDonateButtonText(); 
     });
- 
-    // جلب بيانات الحالة
- // جلب بيانات الحالة
-fetch('http://localhost:5003/api/ShowAllCases/')  // تأكدي من / في النهاية
-    .then(response => {
-        console.log('📡 Response status:', response.status, response.statusText);
+
+    // تحديد رابط الـ API بناءً على الفئة
+    function getApiEndpoint(category) {
+        const endpoints = {
+            'cases': 'http://localhost:5003/api/ShowAllCases/',
+            'campaigns': 'http://localhost:5003/api/campaigns',
+            'zakat': 'http://localhost:5003/api/zakat',
+            'sponsorships': 'http://localhost:5003/api/sponsorships',
+            'projects': 'http://localhost:5003/api/project'
+        };
         
-        if (!response.ok) {
-            // إذا كان فيه خطأ، جربي بدون /api/
-            console.warn('⚠️ First attempt failed, trying alternative...');
-            return fetch('http://localhost:5003/ShowAllCases/');
+        // البدائل للروابط القديمة
+        const fallbackEndpoints = {
+            'cases': 'http://localhost:5003/ShowAllCases/'
+        };
+        
+        return {
+            primary: endpoints[category] || endpoints['cases'],
+            fallback: fallbackEndpoints[category]
+        };
+    }
+
+    // جلب بيانات الحالة/المشروع/الحملة
+    function fetchCaseData() {
+        const endpoints = getApiEndpoint(category);
+        
+        console.log(`🔍 جاري تحميل بيانات الفئة: ${category}`);
+        console.log(`🌐 الرابط الأساسي: ${endpoints.primary}`);
+        if (endpoints.fallback) {
+            console.log(`🌐 الرابط البديل: ${endpoints.fallback}`);
         }
-        return response;
-    })
-    .then(response => {
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
         
-        // تحقق من نوع المحتوى
-        const contentType = response.headers.get('content-type');
-        console.log('📄 Content-Type:', contentType);
-        
-        if (!contentType || !contentType.includes('application/json')) {
-            console.warn('⚠️ Response is not JSON, trying to parse anyway...');
-        }
-        
-        return response.json();
-    })
-    .then(data => {
-        console.group('🔍 API Response Analysis');
-        console.log('📊 Raw data:', data);
-        console.log('📈 Type:', typeof data);
-        console.log('📈 Is Array?', Array.isArray(data));
-        
-        if (!Array.isArray(data)) {
-            console.log('🔑 Keys:', Object.keys(data));
-            
-            // تحليل كل key
-            Object.keys(data).forEach(key => {
-                const value = data[key];
-                console.log(`   Key "${key}":`, {
-                    type: typeof value,
-                    isArray: Array.isArray(value),
-                    length: Array.isArray(value) ? value.length : 'N/A',
-                    isObject: value && typeof value === 'object',
-                    sample: Array.isArray(value) ? value[0] : 
-                           (value && typeof value === 'object') ? 'Object' : value
-                });
+        // المحاولة مع الرابط الأساسي
+        return fetch(endpoints.primary)
+            .then(response => {
+                console.log('📡 Response status:', response.status, response.statusText);
+                
+                if (!response.ok && endpoints.fallback) {
+                    // إذا كان فيه خطأ، جربي الرابط البديل
+                    console.warn('⚠️ First attempt failed, trying fallback endpoint...');
+                    return fetch(endpoints.fallback);
+                }
+                return response;
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                // تحقق من نوع المحتوى
+                const contentType = response.headers.get('content-type');
+                console.log('📄 Content-Type:', contentType);
+                
+                if (!contentType || !contentType.includes('application/json')) {
+                    console.warn('⚠️ Response is not JSON, trying to parse anyway...');
+                }
+                
+                return response.json();
+            })
+            .then(data => {
+                console.group('🔍 API Response Analysis');
+                console.log('📊 Raw data:', data);
+                console.log('📈 Type:', typeof data);
+                console.log('📈 Is Array?', Array.isArray(data));
+                
+                if (!Array.isArray(data)) {
+                    console.log('🔑 Keys:', Object.keys(data));
+                    
+                    // تحليل كل key
+                    Object.keys(data).forEach(key => {
+                        const value = data[key];
+                        console.log(`   Key "${key}":`, {
+                            type: typeof value,
+                            isArray: Array.isArray(value),
+                            length: Array.isArray(value) ? value.length : 'N/A',
+                            isObject: value && typeof value === 'object',
+                            sample: Array.isArray(value) ? value[0] : 
+                                   (value && typeof value === 'object') ? 'Object' : value
+                        });
+                    });
+                }
+                console.groupEnd();
+                
+                return data;
             });
+    }
+
+    // معالجة بيانات API
+  function processApiData(data, caseId) {
+    let itemsArray = [];
+    const commonArrayKeys = ['cases', 'data', 'results', 'items', 'list', 'donations', 
+                             'campaigns', 'zakat', 'sponsorships', 'projects', 
+                             'campaign', 'zakatCases', 'sponsorship', 'project'];
+
+    if (Array.isArray(data)) {
+        itemsArray = data;
+        console.log('✅ Using data directly as array');
+    } else {
+        // البحث أولاً في المفاتيح الشائعة
+        for (const key of commonArrayKeys) {
+            if (data[key] && Array.isArray(data[key])) {
+                itemsArray = data[key];
+                console.log(`✅ Found array in key: "${key}"`);
+                break;
+            }
         }
-        console.groupEnd();
         
-        // تحويل لأي شكل - النسخة المحسنة
-        let casesArray = [];
-        const commonArrayKeys = ['cases', 'data', 'results', 'items', 'list', 'donations'];
-        
-        if (Array.isArray(data)) {
-            // إذا الـ data نفسه array
-            casesArray = data;
-            console.log('✅ Using data directly as array');
-        } else {
-            // ابحثي عن array في الخصائص الشائعة
-            for (const key of commonArrayKeys) {
-                if (data[key] && Array.isArray(data[key])) {
-                    casesArray = data[key];
+        // إذا ما لقينا، ابحثي في كل الخصائص
+        if (itemsArray.length === 0) {
+            for (const key in data) {
+                if (Array.isArray(data[key])) {
+                    itemsArray = data[key];
                     console.log(`✅ Found array in key: "${key}"`);
                     break;
                 }
             }
-            
-            // إذا ما لقينا، ابحثي في كل الخصائص
-            if (casesArray.length === 0) {
-                for (const key in data) {
-                    if (Array.isArray(data[key])) {
-                        casesArray = data[key];
-                        console.log(`✅ Found array in key: "${key}"`);
-                        break;
-                    }
-                }
-            }
         }
+    }
+    
+    // إذا ما في array نهائياً
+    if (itemsArray.length === 0 && data && typeof data === 'object') {
+        console.warn('⚠️ No array found, trying to extract object values');
+        itemsArray = Object.values(data).filter(item => 
+            item && typeof item === 'object' && (item._id || item.id || item.caseId || item.campaignId)
+        );
+    }
+    
+    console.log(`📊 Final items array length: ${itemsArray.length}`);
+    
+    if (!caseId) {
+        console.error('❌ No case ID in URL');
+        return { itemsArray, itemData: null };
+    }
+    
+    if (itemsArray.length === 0) {
+        console.error('❌ No items available');
+        return { itemsArray, itemData: null };
+    }
+    
+    // بحث أكثر مرونة عن العنصر
+    const itemData = itemsArray.find(item => {
+        const itemId = item._id || item.id || item.caseId || item.campaignId;
+        return itemId == caseId || 
+               (itemId && itemId.toString() === caseId);
+    });
+    
+    return { itemsArray, itemData };
+}
+
+
+    // تحديث واجهة المستخدم بالبيانات
+   function updateUIWithData(itemData, itemsArray) {
+    if (!itemData) {
+        console.error('❌ Item not found. Available IDs:', 
+            itemsArray.map(c => c._id || c.id || c.caseId || 'N/A'));
+        return null;
+    }
+
+    console.log('✅ Found item:', itemData);
+    
+    // تحديد نص العنوان بناءً على الفئة
+    const categoryNames = {
+        'cases': 'حالة',
+        'campaigns': 'حملة',
+        'zakat': 'زكاة',
+        'sponsorships': 'كفالة',
+        'projects': 'مشروع'
+    };
+    
+    const titlePrefix = categoryNames[category] || 'عنصر';
+    
+    // البحث عن حقل العنوان
+    const title = itemData.title || itemData.name || itemData.campaignName || 
+                 itemData.projectName || itemData.caseTitle || 'غير معروف';
+    
+    caseTitle.textContent = `أنت الآن تتبرع لصالح ${titlePrefix} - ${title}`;
+    
+    // البحث عن حقل المبلغ الكلي
+    const total = parseFloat(
+        itemData.total || 
+        itemData.amount || 
+        itemData.target_amount || 
+        itemData.targetAmount ||
+        itemData.budget ||
+        0
+    ) || 0;
+    
+    // البحث عن حقل المبلغ المجموع
+    const donated = parseFloat(
+        itemData.donated || 
+        itemData.collected_amount || 
+        itemData.collectedAmount || 
+        itemData.raised || 
+        itemData.raised_amount ||
+        itemData.current_amount ||
+        0
+    ) || 0;
+    
+    const progressPercentage = total > 0 ? (donated / total) * 100 : 0;
+    
+    totalAmount.textContent = `الهدف: ${total} ₪`;
+    donatedAmount.textContent = `تم جمعه: ${donated} ₪`;
+    progressBar.style.width = `${Math.min(100, progressPercentage)}%`;
+    progressText.textContent = `${Math.round(progressPercentage)}%`;
+    
+    // بدء التحديث التلقائي
+    startProgressUpdater(caseId);
+    
+    return itemData;
+}
+// جلب وتحميل البيانات
+fetchCaseData()
+    .then(data => {
+        const { itemsArray, itemData } = processApiData(data, caseId);
         
-        console.log(`📊 Final cases array length: ${casesArray.length}`);
-        
-        // إذا ما في array نهائياً
-        if (casesArray.length === 0 && data && typeof data === 'object') {
-            console.warn('⚠️ No array found, using object values as array');
-            casesArray = Object.values(data).filter(item => 
-                item && typeof item === 'object' && (item._id || item.id)
-            );
-        }
-        
-        const urlParams = new URLSearchParams(window.location.search);
-        const caseId = urlParams.get('id');
-        console.log('🔍 Looking for case ID:', caseId);
-        
-        if (!caseId) {
-            console.error('❌ No case ID in URL');
-            caseTitle.textContent = 'لم يتم تحديد حالة';
-            return;
-        }
-        
-        if (casesArray.length === 0) {
-            console.error('❌ No cases available');
-            caseTitle.textContent = 'لا توجد حالات متاحة';
-            return;
-        }
-        
-        const caseData = casesArray.find(item => {
-            const itemId = item._id || item.id;
-            return itemId === caseId || 
-                   (itemId && itemId.toString() === caseId);
-        });
-        
-        if (caseData) {
-            console.log('✅ Found case:', caseData);
+        if (itemData) {
+            updateUIWithData(itemData, itemsArray);  // ✅ أضف itemsArray هنا
+        } else if (itemsArray.length > 0) {
+            // إذا ما لقينا العنصر، نعرض أول عنصر
+            const firstItem = itemsArray[0];
+            console.warn('⚠️ Using first item as fallback');
             
-            caseTitle.textContent = `أنت الآن تتبرع لصالح حالة - ${caseData.title || 'غير معروف'}`;
-            
-            const total = parseFloat(caseData.total) || 0;
-            const donated = parseFloat(caseData.donated) || 0;
-            const progressPercentage = total > 0 ? (donated / total) * 100 : 0;
-            
-            totalAmount.textContent = `الهدف: ${total} ₪`;
-            donatedAmount.textContent = `تم جمعه: ${donated} ₪`;
-            progressBar.style.width = `${progressPercentage}%`;
-            progressText.textContent = `${Math.round(progressPercentage)}%`;
-            
-            // بدء التحديث التلقائي
-            startProgressUpdater(caseId);
-            
-        } else {
-            console.error('❌ Case not found. Available IDs:', 
-                casesArray.map(c => c._id || c.id || 'N/A'));
-            
-            // إذا ما لقينا الحالة، نعرض أول حالة
-            const firstCase = casesArray[0];
-            if (firstCase) {
-                console.warn('⚠️ Using first case as fallback');
-                caseTitle.textContent = `أنت الآن تتبرع لصالح حالة - ${firstCase.title || 'عام'}`;
-                const total = parseFloat(firstCase.total) || 0;
-                const donated = parseFloat(firstCase.donated) || 0;
-                const progressPercentage = total > 0 ? (donated / total) * 100 : 0;
-                
-                totalAmount.textContent = `الهدف: ${total} ₪`;
-                donatedAmount.textContent = `تم جمعه: ${donated} ₪`;
-                progressBar.style.width = `${progressPercentage}%`;
-                progressText.textContent = `${Math.round(progressPercentage)}%`;
-                
+            const updatedData = updateUIWithData(firstItem, itemsArray);  // ✅ أضف itemsArray هنا
+            if (updatedData) {
                 // تحديث الـ URL ليشمل الـ ID الصحيح
-                window.history.replaceState({}, '', `?id=${firstCase._id || firstCase.id}`);
-                startProgressUpdater(firstCase._id || firstCase.id);
-            } else {
-                caseTitle.textContent = 'الحالة غير موجودة';
+                const itemId = updatedData._id || updatedData.id || updatedData.caseId;
+                window.history.replaceState({}, '', `?id=${itemId}&category=${category}`);
+                startProgressUpdater(itemId);
             }
+        } else {
+            caseTitle.textContent = 'العنصر غير موجود';
         }
     })
     .catch(error => {
-        console.error('❌ Error loading case data:', error);
+        console.error('❌ Error loading item data:', error);
         caseTitle.textContent = 'خطأ في تحميل البيانات';
         
         // بيانات افتراضية للطوارئ
-        const caseId = new URLSearchParams(window.location.search).get('id');
         if (caseId) {
-            caseTitle.textContent = `أنت الآن تتبرع لصالح حالة - ${caseId}`;
+            let titlePrefix = 'حالة';
+            switch(category) {
+                case 'campaigns':
+                    titlePrefix = 'حملة';
+                    break;
+                case 'zakat':
+                    titlePrefix = 'زكاة';
+                    break;
+                case 'sponsorships':
+                    titlePrefix = 'كفالة';
+                    break;
+                case 'projects':
+                    titlePrefix = 'مشروع';
+                    break;
+            }
+            
+            caseTitle.textContent = `أنت الآن تتبرع لصالح ${titlePrefix} - ${caseId}`;
             totalAmount.textContent = 'الهدف: 10000 ₪';
             donatedAmount.textContent = 'تم جمعه: 3500 ₪';
             progressBar.style.width = '35%';
             progressText.textContent = '35%';
         }
     });
-
+    
     // دالة التحديث التلقائي
-   function startProgressUpdater(caseId) {
-    console.log(`🔄 بدأ التحديث التلقائي للحالة: ${caseId}`);
-    
-    const interval = setInterval(async () => {
-        try {
-            console.log('🔄 جاري تحديث بيانات التقدم...');
-            
-            // 1. جلب البيانات من الـ API
-            const response = await fetch('http://localhost:5003/api/ShowAllCases/');
-            
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-            
-            const data = await response.json();
-            console.log('📊 API Response for update:', data);
-            
-            // 2. تحويل الـ response إلى array
-            let allCases = [];
-            
-            if (Array.isArray(data)) {
-                // إذا الـ response نفسه array
-                allCases = data;
-            } else if (data.cases && Array.isArray(data.cases)) {
-                // إذا فيه property اسمها cases
-                allCases = data.cases;
-            } else if (data.data && Array.isArray(data.data)) {
-                // إذا فيه property اسمها data
-                allCases = data.data;
-            } else {
-                // إذا كان object، ابحثي عن أي array فيه
-                for (const key in data) {
-                    if (Array.isArray(data[key])) {
-                        allCases = data[key];
-                        break;
-                    }
-                }
-            }
-            
-            console.log(`📊 Found ${allCases.length} cases`);
-            
-            // 3. البحث عن الحالة المطلوبة
-            if (allCases.length > 0) {
-                const caseData = allCases.find(item => {
-                    // تأكدي من تطابق الـ ID
-                    return item._id === caseId || 
-                           item.id === caseId ||
-                           (item._id && item._id.toString() === caseId);
-                });
+    function startProgressUpdater(itemId) {
+        console.log(`🔄 بدأ التحديث التلقائي للعنصر: ${itemId} (الفئة: ${category})`);
+        
+        const interval = setInterval(async () => {
+            try {
+                console.log('🔄 جاري تحديث بيانات التقدم...');
                 
-                if (caseData) {
-                    console.log('✅ Found case:', caseData);
-                    
-                    // حساب النسبة
-                    const total = parseFloat(caseData.total) || 1;
-                    const donated = parseFloat(caseData.donated) || 0;
-                    const progressPercentage = (donated / total) * 100;
-                    
-                    // تحديث الواجهة
-                    if (donatedAmount) {
-                        donatedAmount.textContent = `تم جمعه: ${donated} ₪`;
+                // 1. جلب البيانات من الـ API المناسب
+                const endpoints = getApiEndpoint(category);
+                let response;
+                
+                try {
+                    response = await fetch(endpoints.primary);
+                    if (!response.ok && endpoints.fallback) {
+                        response = await fetch(endpoints.fallback);
                     }
-                    if (progressBar) {
-                        progressBar.style.width = `${progressPercentage}%`;
-                    }
-                    if (progressText) {
-                        progressText.textContent = `${Math.round(progressPercentage)}%`;
-                    }
-                    
-                    console.log('✅ تم تحديث بيانات التقدم:', {
-                        donated,
-                        total,
-                        percentage: progressPercentage
-                    });
-                } else {
-                    console.warn('⚠️ Case not found in update. Case ID:', caseId);
-                    console.log('Available IDs:', allCases.map(c => c._id || c.id));
+                } catch (fetchError) {
+                    console.error('❌ فشل في جلب البيانات:', fetchError);
+                    return;
                 }
-            } else {
-                console.warn('⚠️ No cases found in response');
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const data = await response.json(); 
+                console.log('📊 API Response for update:', data);
+                
+                // 2. تحويل الـ response إلى array
+                let allItems = [];
+                
+                if (Array.isArray(data)) {
+                    allItems = data;
+                } else {
+                    // البحث عن array في الخصائص الشائعة
+                    const commonKeys = ['cases', 'data', 'results', 'items', 'list', 'donations',
+                                        'campaigns', 'zakat', 'sponsorships', 'projects'];
+                    
+                    for (const key of commonKeys) {
+                        if (data[key] && Array.isArray(data[key])) {
+                            allItems = data[key];
+                            break;
+                        }
+                    }
+                    
+                    // إذا ما لقينا، ابحثي في كل الخصائص
+                    if (allItems.length === 0) {
+                        for (const key in data) {
+                            if (Array.isArray(data[key])) {
+                                allItems = data[key];
+                                break;
+                            }
+                        }
+                    }
+                }
+                
+                console.log(`📊 Found ${allItems.length} items`);
+                
+                // 3. البحث عن العنصر المطلوب
+                if (allItems.length > 0) {
+                    const itemData = allItems.find(item => {
+                        return item._id === itemId || 
+                               item.id === itemId ||
+                               (item._id && item._id.toString() === itemId);
+                    });
+                    
+                    if (itemData) {
+                        console.log('✅ Found item for update:', itemData);
+                        
+                        // حساب النسبة
+                        const total = parseFloat(itemData.total || itemData.amount || itemData.target_amount || 1) || 1;
+                        const donated = parseFloat(itemData.donated || itemData.collected_amount || itemData.raised || 0) || 0;
+                        const progressPercentage = (donated / total) * 100;
+                        
+                        // تحديث الواجهة
+                        if (donatedAmount) {
+                            donatedAmount.textContent = `تم جمعه: ${donated} ₪`;
+                        }
+                        if (progressBar) {
+                            progressBar.style.width = `${progressPercentage}%`;
+                        }
+                        if (progressText) {
+                            progressText.textContent = `${Math.round(progressPercentage)}%`;
+                        }
+                        
+                        console.log('✅ تم تحديث بيانات التقدم:', {
+                            donated,
+                            total,
+                            percentage: progressPercentage
+                        });
+                    } else {
+                        console.warn('⚠️ Item not found in update. Item ID:', itemId);
+                        console.log('Available IDs:', allItems.map(c => c._id || c.id));
+                    }
+                } else {
+                    console.warn('⚠️ No items found in response');
+                }
+                
+            } catch (error) {
+                console.log('❌ تحديث التقدم فشل:', error.message || error);
             }
-            
-        } catch (error) {
-            console.log('❌ تحديث التقدم فشل:', error.message || error);
-        }
-    }, 30000); // كل 30 ثانية
+        }, 30000); // كل 30 ثانية
 
-    // تنظيف المؤقت عند مغادرة الصفحة
-    window.addEventListener('beforeunload', () => {
-        clearInterval(interval);
-        console.log('🧹 تم تنظيف مؤقت التحديث التلقائي');
-    });
-    
-    return interval;
-}
+        // تنظيف المؤقت عند مغادرة الصفحة
+        window.addEventListener('beforeunload', () => {
+            clearInterval(interval);
+            console.log('🧹 تم تنظيف مؤقت التحديث التلقائي');
+        });
+        
+        return interval;
+    }
 
     // أزرار مبلغ التبرع
     const amountButtons = document.querySelectorAll('.amount-buttons button');
@@ -815,7 +925,6 @@ fetch('http://localhost:5003/api/ShowAllCases/')  // تأكدي من / في ال
     // دالة تحديث حالة التبرع (إرسال البيانات)
 async function updateDonationStatus(caseId, amount, donationInfo) {
     try {
-        // 1. جلب التوكن
         const token = localStorage.getItem('token');
         if (!token) {
             Swal.fire({
@@ -829,9 +938,7 @@ async function updateDonationStatus(caseId, amount, donationInfo) {
             return;
         }
 
-        console.log('🔑 Token exists, fetching user data...');
-
-        // 2. جلب بيانات المستخدم الحالي من الـ backend
+        // جلب بيانات المستخدم
         let currentUser = null;
         let userName = '';
         let userId = '';
@@ -839,32 +946,25 @@ async function updateDonationStatus(caseId, amount, donationInfo) {
         try {
             const userResponse = await fetch('http://localhost:5003/api/auth/me', {
                 method: 'GET',
-                headers: {
-                    'Authorization': `Bearer ${token}`
-                }
+                headers: { 'Authorization': `Bearer ${token}` }
             });
-            
-            console.log('👤 User API response status:', userResponse.status);
             
             if (userResponse.ok) {
                 const userData = await userResponse.json();
-                console.log('👤 User data received:', userData);
-                
                 if (userData.success && userData.user) {
                     currentUser = userData.user;
                     userId = currentUser.id || currentUser._id;
                     userName = `${currentUser.firstName || ''} ${currentUser.lastName || ''}`.trim() || currentUser.email;
                 }
-            } else {
-                console.warn('⚠️ User API failed:', userResponse.status);
             }
         } catch (userError) {
             console.warn('⚠️ Could not fetch user:', userError);
         }
 
-        // 3. تحضير بيانات التبرع
+        // ============ إضافة category هنا ============
         const donationData = {
             caseId: caseId,
+            category: category,  // ⭐️ أضف هذا السطر
             amount: amount,
             currency: donationInfo.currency,
             donorInfo: {
@@ -875,26 +975,17 @@ async function updateDonationStatus(caseId, amount, donationInfo) {
             },
             paymentMethod: donationInfo.paymentMethod,
             anonymous: donationInfo.anonymous,
-            transactionId: donationInfo.transactionId
+            transactionId: donationInfo.transactionId,
+            author: userId || 'anonymous',  // ⭐️ تغيير من authorId إلى author
+            authorName: userName || donationInfo.name  // ⭐️ تأكد من وجوده
         };
 
-        // 4. إضافة معلومات الكاتب إذا كانت موجودة
-        if (userId && userName) {
-            donationData.authorId = userId;
-            donationData.authorName = userName;
-            console.log('📝 Added author info:', { authorId: userId, authorName: userName });
-        } else {
-            console.warn('⚠️ No user info available, using donor name as author');
-            donationData.authorId = 'anonymous';
-            donationData.authorName = donationInfo.name;
-        }
-
-        // 5. إضافة CSRF token إذا كان موجوداً
+        // إضافة CSRF token
         const csrfToken = await getCSRFToken();
         
         console.log('📤 Sending donation data:', donationData);
 
-        // 6. إرسال طلب التبرع
+        // إرسال طلب التبرع
         const response = await fetch('http://localhost:5003/api/donations', {
             method: 'POST',
             headers: { 
@@ -906,13 +997,7 @@ async function updateDonationStatus(caseId, amount, donationInfo) {
         });
 
         const result = await response.json();
-        console.log('📥 Donation response:', {
-            status: response.status,
-            ok: response.ok,
-            data: result
-        });
-
-        // 7. معالجة الرد
+        
         if (response.ok) {
             Swal.fire({
                 icon: 'success',
@@ -928,31 +1013,23 @@ async function updateDonationStatus(caseId, amount, donationInfo) {
             }, 3000);
             
         } else {
-            // إذا كان الخطأ متعلق بالمستخدم
-            if (result.message && result.message.includes('Author ID')) {
-                Swal.fire({
-                    icon: 'error',
-                    title: '⚠️ مشكلة في بيانات المستخدم',
-                    html: `
-                        <div style="text-align: right; direction: rtl;">
-                            <p>لم يتم التعرف على حسابك بشكل صحيح.</p>
-                            <p>يرجى:</p>
-                            <ol>
-                                <li>تسجيل الخروج ثم الدخول مرة أخرى</li>
-                                <li>إذا استمرت المشكلة، تواصل مع الدعم الفني</li>
-                            </ol>
-                        </div>
-                    `,
-                    confirmButtonText: 'حسناً'
-                });
-            } else {
-                Swal.fire({
-                    icon: 'error',
-                    title: '⚠️ فشل في العملية',
-                    text: result.message || 'حدث خطأ أثناء إرسال التبرع',
-                    confirmButtonText: 'حسناً'
-                });
+            // رسائل خطأ مخصصة بناءً على الرد
+            let errorMessage = 'حدث خطأ أثناء إرسال التبرع';
+            
+            if (result.message) {
+                errorMessage = result.message;
+            } else if (result.details) {
+                errorMessage = result.details;
+            } else if (result.error) {
+                errorMessage = result.error;
             }
+            
+            Swal.fire({
+                icon: 'error',
+                title: '⚠️ فشل في العملية',
+                text: errorMessage,
+                confirmButtonText: 'حسناً'
+            });
         }
 
     } catch (error) {
@@ -966,7 +1043,9 @@ async function updateDonationStatus(caseId, amount, donationInfo) {
     }
 }
 
+
 });
+/*=============================================================================================*/
 
 // دالة تعديل اتجاه النص
 function autoDirection(input) {
